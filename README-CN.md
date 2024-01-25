@@ -1773,9 +1773,9 @@ UAbilitySystemComponent::ServerSetInputPressed()
 
 除了分配的操作可以激活 `GameplayAbilities`外, `ASC` 也可以接受通用的 `Confirm` 和 `Cancel` 输入. `AbilityTasks`使用这些特殊的输入来确认或取消一些事情比如[`Target Actors`](#concepts-targeting-actors).
 
-要将输入绑定到 `ASC`, 您必须首先创建一个将输入操作名称转换为byte节的枚举. The enum name must match exactly to the name used for the input action in the project settings. The `DisplayName` does not matter.
+要将输入绑定到 `ASC`, 您必须首先创建一个将输入操作名称转换为byte节的枚举. 枚举的名称必须与项目设置中输入操作名称完全对应. `DisplayName`修改不所谓.
 
-From the Sample Project:
+摘自示例项目:
 ```c++
 UENUM(BlueprintType)
 enum class EGDAbilityInputID : uint8
@@ -1803,7 +1803,7 @@ enum class EGDAbilityInputID : uint8
 };
 ```
 
-If your `ASC` lives on the `Character`, then in `SetupPlayerInputComponent()` include the function for binding to the `ASC`:
+如果你把 `ASC` 挂在 `Character`上, 则在 `SetupPlayerInputComponent()` 包含绑定输入到 `ASC`的操作:
 ```c++
 // Bind to AbilitySystemComponent
 FTopLevelAssetPath AbilityEnumAssetPath = FTopLevelAssetPath(FName("/Script/GASDocumentation"), FName("EGDAbilityInputID"));
@@ -1811,15 +1811,15 @@ AbilitySystemComponent->BindAbilityActivationToInputComponent(PlayerInputCompone
 	FString("CancelTarget"), AbilityEnumAssetPath, static_cast<int32>(EGDAbilityInputID::Confirm), static_cast<int32>(EGDAbilityInputID::Cancel)));
 ```
 
-If your `ASC` lives on the `PlayerState`, there is a potential race condition inside of `SetupPlayerInputComponent()` where the `PlayerState` may not have replicated to the client yet. Therefore, I recommend attempting to bind to input in `SetupPlayerInputComponent()` and `OnRep_PlayerState()`. `OnRep_PlayerState()` is not sufficient by itself because there could be a case where the `Actor's` `InputComponent` could be null when `PlayerState` replicates before the `PlayerController` tells the client to call `ClientRestart()` which creates the `InputComponent`. The Sample Project demonstrates attempting to bind in both locations with a boolean gating the process so it only actually binds the input once.
+如果你将  `ASC` 挂在 `PlayerState`上,  `SetupPlayerInputComponent()`内部存在潜在的竞争条件，其中`PlayerState` 可能尚未复制到客户端. 因此, 我建议在收到`OnRep_PlayerState()`和 `SetupPlayerInputComponent()` 时再将输入绑定. 只有`OnRep_PlayerState()` 是并不足够的，因为当 `PlayerController`告诉客户端调用`ClientRestart()`去创建 `InputComponent`前，`Actor`的`InputComponent`是为空的 . 示例项目演示了尝试通过布尔门控过程在两个位置进行绑定，因此它实际上只绑定输入一次.
 
-**Note:** In the Sample Project `Confirm` and `Cancel` in the enum don't match the input action names in the project settings (`ConfirmTarget` and `CancelTarget`), but we supply the mapping between them in `BindAbilityActivationToInputComponent()`. These are special since we supply the mapping and they don't have to match, but they can match. All other inputs in the enum must match the input action names in the project settings.
+**注意:** 在示例工程中枚举的 `Confirm` 和 `Cancel`并不匹配项目设置中输入操作的名称 (`ConfirmTarget` 和 `CancelTarget`), 但我们在  `BindAbilityActivationToInputComponent()`中提供了它们之间的映射. 这些特殊的操作本身并不匹配直到我们提供相应映射关系. 枚举中的所有其他输入必须与项目设置中的输入操作名称匹配.
 
-For `GameplayAbilities` that will only ever be activated by one input (they will always exist in the same "slot" like a MOBA), I prefer to add a variable to my `UGameplayAbility` subclass where I can define their input. I can then read this from the `ClassDefaultObject` when granting the ability.
+对于仅由一个输入激活的 `GameplayAbilities` (它们会一直存在于同一个"slot" 如 MOBA), 我更喜欢向我的`UGameplayAbility` 子类中添加一个我可以自定义输入的变量. 然后在授予该能力时从 `ClassDefaultObject` 中读取.
 
 <a name="concepts-ga-input-noactivate"></a>
 ##### 4.6.2.1 Binding to Input without Activating Abilities
-If you don't want your `GameplayAbilities` to automatically activate when an input is pressed but still bind them to input to use with `AbilityTasks`, you can add a new bool variable to your `UGameplayAbility` subclass, `bActivateOnInput`, that defaults to `true` and override `UAbilitySystemComponent::AbilityLocalInputPressed()`.
+如果你不想你的 `GameplayAbilities` 在按下某一个按键时自动激活，但仍希望它们绑定输入操作以便于 `AbilityTasks`一起使用, 你可以在你的`UGameplayAbility` 子类中添加一个bool变量, `bActivateOnInput`, 把默认值设为 `true` 然后重载 `UAbilitySystemComponent::AbilityLocalInputPressed()`.
 
 ```c++
 void UGSAbilitySystemComponent::AbilityLocalInputPressed(int32 InputID)
@@ -1878,11 +1878,11 @@ void UGSAbilitySystemComponent::AbilityLocalInputPressed(int32 InputID)
 
 <a name="concepts-ga-granting"></a>
 #### 4.6.3 Granting Abilities
-Granting a `GameplayAbility` to an `ASC` adds it to the `ASC's` list of `ActivatableAbilities` allowing it to activate the `GameplayAbility` at will if it meets the [`GameplayTag` requirements](#concepts-ga-tags).
+授予`ASC`一个新`GameplayAbility`并把它添加到 `ASC`的 `ActivatableAbilities` 列表，允许它们随意在满足[`GameplayTag` 要求](#concepts-ga-tags)时随意激活.
 
-We grant `GameplayAbilities` on the server which then automatically replicates the [`GameplayAbilitySpec`](#concepts-ga-spec) to the owning client. Other clients / simulated proxies do not receive the `GameplayAbilitySpec`.
+我们在服务器上授予 `GameplayAbilities`后他会自动将 [`GameplayAbilitySpec`](#concepts-ga-spec) 复制给对应客户端. 其他客户端 / 模拟代理不会收到 `GameplayAbilitySpec`.
 
-The Sample Project stores a `TArray<TSubclassOf<UGDGameplayAbility>>` on the `Character` class that it reads from and grants when the game starts:
+示例项目中将`TArray<TSubclassOf<UGDGameplayAbility>>` 存储在它从中读取并在游戏开始时授予的`Character`类上:
 ```c++
 void AGDCharacterBase::AddCharacterAbilities()
 {
@@ -1902,13 +1902,13 @@ void AGDCharacterBase::AddCharacterAbilities()
 }
 ```
 
-When granting these `GameplayAbilities`, we're creating `GameplayAbilitySpecs` with the `UGameplayAbility` class, the ability level, the input that it is bound to, and the `SourceObject` or who gave this `GameplayAbility` to this `ASC`.
+在授予这些 `GameplayAbilities`, 我们使用`UGameplayAbility`类, ability level, 输入绑定, 以及 `SourceObject` 或者谁将此`GameplayAbility` 添加到 `ASC`的看来创建`GameplayAbilitySpecs`.
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-ga-activating"></a>
 #### 4.6.4 Activating Abilities
-If a `GameplayAbility` is assigned an input action, it will be automatically activated if the input is pressed and it meets its `GameplayTag` requirements. This may not always be the desirable way to activate a `GameplayAbility`. The `ASC` provides four other methods of activating `GameplayAbilities`: by `GameplayTag`, `GameplayAbility` class, `GameplayAbilitySpec` handle, and by an event. Activating a `GameplayAbility` by event allows you to [pass in a payload of data with the event](#concepts-ga-data).
+如果一个 `GameplayAbility` 定义了输入操作, 在输入被按下且满足对应的 `GameplayTag`要求时它会自动激活. 这可能并不总是激活 `GameplayAbility`的理想方式. `ASC`提供了其他四种激活方式: 通过 `GameplayTag`, `GameplayAbility` class, `GameplayAbilitySpec` handle, and by an event. 通过事件激活 `GameplayAbility`需要你 [随事件传入相应数据](#concepts-ga-data).
 
 ```c++
 UFUNCTION(BlueprintCallable, Category = "Abilities")
@@ -1923,42 +1923,42 @@ bool TriggerAbilityFromGameplayEvent(FGameplayAbilitySpecHandle AbilityToTrigger
 
 FGameplayAbilitySpecHandle GiveAbilityAndActivateOnce(const FGameplayAbilitySpec& AbilitySpec, const FGameplayEventData* GameplayEventData);
 ```
-To activate a `GameplayAbility` by event, the `GameplayAbility` must have its `Triggers` set up in the `GameplayAbility`. Assign a `GameplayTag` and pick an option for `GameplayEvent`. To send the event, use the function `UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(AActor* Actor, FGameplayTag EventTag, FGameplayEventData Payload)`. Activating a `GameplayAbility` by event allows you to pass in a payload with data.
+通过事件激活 `GameplayAbility`，对应的 `GameplayAbility` 必须先定义好自己的 `Triggers`. 分配一个`GameplayTag` 并为 `GameplayEvent`设置一个选项. 使用函数 `UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(AActor* Actor, FGameplayTag EventTag, FGameplayEventData Payload)`发送事件. 
 
-`GameplayAbility` `Triggers` also allow you to activate the `GameplayAbility` when a `GameplayTag` is added or removed.
+`GameplayAbility` `Triggers` 还可以在 `GameplayTag`添加或移除时激活 `GameplayAbility`.
 
-**Note:** When activating a `GameplayAbility` from event in Blueprint, you must use the `ActivateAbilityFromEvent` node.
+**注意:** 当在蓝图中使用事件激活`GameplayAbility`时, 你必须使用 `ActivateAbilityFromEvent` 节点.
 
-**Note:** Don't forget to call `EndAbility()` when the `GameplayAbility` should terminate unless you have a `GameplayAbility` that will always run like a passive ability.
+**注意:** 当`GameplayAbility`终止时不要忘记调用 `EndAbility()`,除非你有一个始终像被动能力一样运行的`GameplayAbility`.
 
-Activation sequence for **locally predicted** `GameplayAbilities`:
-1. **Owning client** calls `TryActivateAbility()`
-1. Calls `InternalTryActivateAbility()`
-1. Calls `CanActivateAbility()` and returns whether `GameplayTag` requirements are met, if the `ASC` can afford the cost, if the `GameplayAbility` is not on cooldown, and if no other instances are currently active
-1. Calls `CallServerTryActivateAbility()` and passes it the `Prediction Key` that it generates
-1. Calls `CallActivateAbility()`
-1. Calls `PreActivate()` Epic refers to this as "boilerplate init stuff"
-1. Calls `ActivateAbility()` finally activating the ability
+**本地预测的** `GameplayAbilities`激活序列:
+1. **Owning client** 调用 `TryActivateAbility()`
+1. 调用 `InternalTryActivateAbility()`
+1. 调用 `CanActivateAbility()` 并返回 `GameplayTag` 是否满足需求, 如果 `ASC` 满足消耗cost, 如果 `GameplayAbility` 不在冷却期, 如果当前没有其他实例处于活动状态
+1. 调用 `CallServerTryActivateAbility()` 并向其传递生成的 预测密钥`Prediction Key`
+1. 调用 `CallActivateAbility()`
+1. 调用 `PreActivate()` Epic refers to this as "boilerplate init stuff"
+1. 调用 `ActivateAbility()` 最终激活
 
-**Server** receives `CallServerTryActivateAbility()`
-1. Calls `ServerTryActivateAbility()`
-1. Calls `InternalServerTryActivateAbility()` 
-1. Calls `InternalTryActivateAbility()`
-1. Calls `CanActivateAbility()` and returns whether `GameplayTag` requirements are met, if the `ASC` can afford the cost, if the `GameplayAbility` is not on cooldown, and if no other instances are currently active
-1. Calls `ClientActivateAbilitySucceed()` if successful telling it to update its `ActivationInfo` that its activation was confirmed by the server and broadcasting the `OnConfirmDelegate` delegate. This is not the same as input confirmation.
-1. Calls `CallActivateAbility()`
-1. Calls `PreActivate()` Epic refers to this as "boilerplate init stuff"
-1. Calls `ActivateAbility()` finally activating the ability
+**Server** 接收 `CallServerTryActivateAbility()`
+1. 调用 `ServerTryActivateAbility()`
+1. 调用 `InternalServerTryActivateAbility()` 
+1. 调用 `InternalTryActivateAbility()`
+1. 调用 `CanActivateAbility()` 并返回 `GameplayTag` 是否满足需求, 如果 `ASC` 满足消耗cost, 如果 `GameplayAbility` 不在冷却期, 如果当前没有其他实例处于活动状态
+1. 调用 `ClientActivateAbilitySucceed()` 如果成功则告诉它更新它的 `ActivationInfo`（激活由服务器确认并调用`OnConfirmDelegate`广播）. 这与输入确认不同.
+1. 调用 `CallActivateAbility()`
+1. 调用 `PreActivate()` Epic refers to this as "boilerplate init stuff"
+1. 调用 `ActivateAbility()` 最终激活
 
-If at any time the server fails to activate, it will call `ClientActivateAbilityFailed()`, immediately terminating the client's `GameplayAbility` and undoing any predicted changes.
+如果任何时候服务器激活失败，他会调用 `ClientActivateAbilityFailed()`, 立即终止客户端的 `GameplayAbility` 并恢复所有预测所做的改变.
 
 <a name="concepts-ga-activating-passive"></a>
 ##### 4.6.4.1 Passive Abilities
-To implement passive `GameplayAbilities` that automatically activate and run continuously, override `UGameplayAbility::OnAvatarSet()` which is automatically called when a `GameplayAbility` is granted and the `AvatarActor` is set and call `TryActivateAbility()`.
+实现一个自动激活且能持续运行的被动 `GameplayAbilities`,  当`GameplayAbility`被授予且`AvatarActor`被设置时会自动调用重载函数  `UGameplayAbility::OnAvatarSet()`并调用`TryActivateAbility()`.
 
-I recommend adding a `bool` to your custom `UGameplayAbility` class specifying if the `GameplayAbility` should be activated when granted. The Sample Project does this for its passive armor stacking ability.
+我建议添加一个 `bool` 到你自定义的 `UGameplayAbility` 类中用来说明 `GameplayAbility` 是否可以被激活当被授予时. 示例项目添加了这个到盔甲的耐久度.
 
-Passive `GameplayAbilities` will typically have a [`Net Execution Policy`](#concepts-ga-net) of `Server Only`.
+被动 `GameplayAbilities` 的 [`Net Execution Policy`](#concepts-ga-net) 都是 `Server Only`.
 
 ```c++
 void UGDGameplayAbility::OnAvatarSet(const FGameplayAbilityActorInfo * ActorInfo, const FGameplayAbilitySpec & Spec)
@@ -1972,16 +1972,16 @@ void UGDGameplayAbility::OnAvatarSet(const FGameplayAbilityActorInfo * ActorInfo
 }
 ```
 
-Epic describes this function as the correct place to initiate passive abilities and to do `BeginPlay` type things.
+Epic 将此函数描述为启动被动能力和执行 `BeginPlay` 操作的正确位置.
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-ga-activating-failedtags"></a>
 ##### 4.6.4.2 Activation Failed Tags
 
-Abilities have default logic to tell you why an ability activation failed. To enable this, you must set up the GameplayTags that correspond to the default failure cases.
+Abilities 有默认的逻辑告诉你为什么ability 激活失败. 要启用此功能，您必须设置与默认失败情况相对应的 GameplayTags.
 
-Add these tags (or your own naming convention) to your project:
+添加这些 tags (或者你自己定义的名字) 到你的项目中:
 ```
 +GameplayTagList=(Tag="Activation.Fail.BlockedByTags",DevComment="")
 +GameplayTagList=(Tag="Activation.Fail.CantAffordCost",DevComment="")
@@ -1991,7 +1991,7 @@ Add these tags (or your own naming convention) to your project:
 +GameplayTagList=(Tag="Activation.Fail.OnCooldown",DevComment="")
 ```
 
-Then add them to the [`GASDocumentation\Config\DefaultGame.ini`](https://github.com/tranek/GASDocumentation/blob/master/Config/DefaultGame.ini#L8-L13):
+把这些添加到 [`GASDocumentation\Config\DefaultGame.ini`](https://github.com/tranek/GASDocumentation/blob/master/Config/DefaultGame.ini#L8-L13):
 ```
 [/Script/GameplayAbilities.AbilitySystemGlobals]
 ActivateFailIsDeadName=Activation.Fail.IsDead
@@ -2002,7 +2002,7 @@ ActivateFailTagsMissingName=Activation.Fail.MissingTags
 ActivateFailNetworkingName=Activation.Fail.Networking
 ```
 
-Now whenever an ability activation fails, this corresponding GameplayTag will be included in output log messages or visible on the `showdebug AbilitySystem` hud.
+现在无论何时一个ability激活失败了, 相应的GameplayTag 相应的信息会包含在output log messages 或显示在 `showdebug AbilitySystem` hud.
 ```
 LogAbilitySystem: Display: InternalServerTryActivateAbility. Rejecting ClientActivation of Default__GA_FireGun_C. InternalTryActivateAbility failed: Activation.Fail.BlockedByTags
 LogAbilitySystem: Display: ClientActivateAbilityFailed_Implementation. PredictionKey :109 Ability: Default__GA_FireGun_C
@@ -2014,9 +2014,9 @@ LogAbilitySystem: Display: ClientActivateAbilityFailed_Implementation. Predictio
 
 <a name="concepts-ga-cancelabilities"></a>
 #### 4.6.5 Canceling Abilities
-To cancel a `GameplayAbility` from within, you call `CancelAbility()`. This will call `EndAbility()` and set its `WasCancelled` parameter to true.
+要从内部取消`GameplayAbility`, 你可以调用 `CancelAbility()`. 他会调用 `EndAbility()` 并将 `WasCancelled` 设置为 true.
 
-To cancel a `GameplayAbility` externally, the `ASC` provides a few functions:
+要在外部取消`GameplayAbility`, `ASC`提供了如下方法:
 
 ```c++
 /** Cancels the specified ability CDO. */
@@ -2035,148 +2035,148 @@ void CancelAllAbilities(UGameplayAbility* Ignore=nullptr);
 virtual void DestroyActiveState();
 ```
 
-**Note:** I have found that `CancelAllAbilities` doesn't seem to work right if you have a `Non-Instanced` `GameplayAbilities`. It seems to hit the `Non-Instanced` `GameplayAbility` and give up. `CancelAbilities` can handle `Non-Instanced` `GameplayAbilities` better and that is what the Sample Project uses (Jump is a non-instanced `GameplayAbility`). Your mileage may vary.
+**注意:** 我发现如果你有一个`Non-Instanced`非实例化的 `GameplayAbilities`，`CancelAllAbilities`似乎没用. 看起来时遇到 `Non-Instanced` `GameplayAbility` 就放弃了. `CancelAbilities` 可以更好的处理 `Non-Instanced` `GameplayAbilities` ，这也是示例项目中使用的(Jump is a non-instanced `GameplayAbility`). Your mileage may vary.
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-ga-definition-activeability"></a>
 #### 4.6.6 Getting Active Abilities
-Beginners often ask "How can I get the active ability?" perhaps to set variables on it or to cancel it. More than one `GameplayAbility` can be active at a time so there is no one "active ability". Instead, you must search through an `ASC's` list of `ActivatableAbilities` (granted `GameplayAbilities` that the `ASC` owns) and find the one matching the [`Asset` or `Granted` `GameplayTag`](#concepts-ga-tags) that you are looking for.
+初学者经常会问 "我该如何获取激活的 ability?" 也许可以在上面设置变量或者取消它. 一次可以激活多个`GameplayAbility`所以就不存在一种 "active ability". 相反, 你必须通过 `ASC` 的 `ActivatableAbilities`列表 (granted `GameplayAbilities` that the `ASC` owns) 去搜索并找到符合你需要的[`Asset` or `Granted` `GameplayTag`](#concepts-ga-tags)要求的那个.
 
-`UAbilitySystemComponent::GetActivatableAbilities()` returns a `TArray<FGameplayAbilitySpec>` for you to iterate over.
+`UAbilitySystemComponent::GetActivatableAbilities()`返回 `TArray<FGameplayAbilitySpec>` 供你去遍历.
 
-The `ASC` also has another helper function that takes in a `GameplayTagContainer` as a parameter to assist in searching instead of manually iterating over the list of `GameplayAbilitySpecs`. The `bOnlyAbilitiesThatSatisfyTagRequirements` parameter will only return `GameplayAbilitySpecs` that satisfy their `GameplayTag` requirements and could be activated right now. For example, you could have two basic attack `GameplayAbilities`, one with a weapon and one with bare fists, and the correct one activates depending on if a weapon is equipped setting the `GameplayTag` requirement. See Epic's comment on the function for more information.
+`ASC` 还提供了另一个有用的辅助函数，它接受 `GameplayTagContainer` 作为参数来搜索，而不是手动遍历 `GameplayAbilitySpecs`列表. `bOnlyAbilitiesThatSatisfyTagRequirements` 参数将仅返回满足`GameplayTag`要求且可以立即激活的 `GameplayAbilitySpecs`. 例如, 你有两种基础攻击 `GameplayAbilities`,一个使用武器另一个空拳, 哪个被正确的激活取决于你的装备`GameplayTag`被设置. 参考 Epic的函数注释获取更多内容.
 ```c++
 UAbilitySystemComponent::GetActivatableGameplayAbilitySpecsByAllMatchingTags(const FGameplayTagContainer& GameplayTagContainer, TArray < struct FGameplayAbilitySpec* >& MatchingGameplayAbilities, bool bOnlyAbilitiesThatSatisfyTagRequirements = true)
 ```
 
-Once you get the `FGameplayAbilitySpec` that you are looking for, you can call `IsActive()` on it.
+一旦你获取你寻找的 `FGameplayAbilitySpec`时，你可以调用 `IsActive()`.
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-ga-instancing"></a>
 #### 4.6.7 Instancing Policy
-A `GameplayAbility's` `Instancing Policy` determines if and how the `GameplayAbility` is instanced when activated.
+`GameplayAbility`的 `Instancing Policy` 决定在激活时是否以及如何实例化.
 
-| `Instancing Policy`     | Description                                                                                      | Example of when to use                                                                                                                                                                                                                                                                                                                                                                                             |
+| `Instancing Policy`     | 描述                                                                                      | Example of when to use                                                                                                                                                                                                                                                                                                                                                                                             |
 | ----------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Instanced Per Actor     | Each `ASC` only has one instance of the `GameplayAbility` that is reused between activations.    | This will probably be the `Instancing Policy` that you use the most. You can use it for any ability and provides persistence between activations. The designer is responsible for manually resetting any variables between activations that need it.                                                                                                                                                               |
-| Instanced Per Execution | Every time a `GameplayAbility` is activated, a new instance of the `GameplayAbility` is created. | The benefit of these `GameplayAbilities` is that the variables are reset everytime you activate. These provide worse performance than `Instanced Per Actor` since they will spawn new `GameplayAbilities` every time they activate. The Sample Project does not use any of these.                                                                                                                                 |
-| Non-Instanced           | The `GameplayAbility` operates on its `ClassDefaultObject`. No instances are created.            | This has the best performance of the three but is the most restrictive in what can be done with it. `Non-Instanced` `GameplayAbilities` cannot store state, meaning no dynamic variables and no binding to `AbilityTask` delegates. The best place to use them is for frequently used simple abilities like minion basic attacks in a MOBA or RTS. The Sample Project's Jump `GameplayAbility` is `Non-Instanced`. |
+| Instanced Per Actor     | 每个 `ASC` 都只拥有一个 `GameplayAbility`示例，多次激活间可重复使用.    | 这可能是你使用最多的 `Instancing Policy`. 您可以将其用于任何能力，并在激活之间提供持久性. 开发者只需要在每次使用时手动重置任何变量.                                                                                                                                                               |
+| Instanced Per Execution | 每次`GameplayAbility` 被激活时都创建一个 `GameplayAbility`的新实例. | 好处是每次激活 `GameplayAbilities`的变量都被重置. 它们的性能比 `Instanced Per Actor` 要差，因为它们每次都会创建新的的`GameplayAbilities`. 实例项目中并为使用该策略.                                                                                                                                 |
+| Non-Instanced           | `GameplayAbility` 工作在它的`ClassDefaultObject`上. 不会创建实例.            | 这是三者中性能最好同时也是限制最多的策略. `Non-Instanced` `GameplayAbilities` 不可以缓存数据, 意味着没有动态变量，不能在 `AbilityTask` 做绑定. 最佳的使用方式是用来做简单的能力，比如 MOBA 或 RTS中小兵的攻击. 示例工程中 Jump `GameplayAbility` 是 `Non-Instanced`. |
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-ga-net"></a>
 #### 4.6.8 Net Execution Policy
-A `GameplayAbility's` `Net Execution Policy` determines who runs the `GameplayAbility` and in what order.
+`GameplayAbility`的 `Net Execution Policy` 决定了谁执行`GameplayAbility` 并以什么顺序.
 
-| `Net Execution Policy` | Description                                                                                                                                                                                                         |
+| `Net Execution Policy` | 描述                                                                                                                                                                                                         |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Local Only`           | The `GameplayAbility` is only run on the owning client. This could be useful for abilities that only make local cosmetic changes. Single player games should use `Server Only`.                                     |
-| `Local Predicted`      | `Local Predicted` `GameplayAbilities` activate first on the owning client and then on the server. The server's version will correct anything that the client predicted incorrectly. See [Prediction](#concepts-p). |
-| `Server Only`          | The `GameplayAbility` is only run on the server. Passive `GameplayAbilities` will typically be `Server Only`. Single player games should use this.                                                                  |
-| `Server Initiated`     | `Server Initiated` `GameplayAbilities` activate first on the server and then on the owning client. I personally haven't used these much if any.                                                                     | 
+| `Local Only`           | `GameplayAbility`只在当前客户端执行. 对只有本地装饰性改变的能力很有用. 单机游戏需要使用 `Server Only`.                                     |
+| `Local Predicted`      | `Local Predicted` `GameplayAbilities` 现在本地客户端激活再传到服务器. 服务器会修正任何客户端预测错误的内容. c参考 [Prediction](#concepts-p). |
+| `Server Only`          | `GameplayAbility` 只在服务器运行. 被动 `GameplayAbilities` 通常是 `Server Only`. 单机游戏也是使用该选项.                                                                  |
+| `Server Initiated`     | `Server Initiated` `GameplayAbilities` 是服务器先激活然后再传给对应客户端. 我个人并未使用过.                                                                     | 
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-ga-tags"></a>
 #### 4.6.9 Ability Tags
-`GameplayAbilities` come with `GameplayTagContainers` with built-in logic. None of these `GameplayTags` are replicated.
+`GameplayAbilities` 使用有内置逻辑的 `GameplayTagContainers`. 这些 `GameplayTags` 不可复制.
 
-| `GameplayTag Container`     | Description                                                                                                                                                                                   |
+| `GameplayTag Container`     | 描述                                                                                                                                                                                   |
 | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Ability Tags`              | `GameplayTags` that the `GameplayAbility` owns. These are just `GameplayTags` to describe the `GameplayAbility`.                                                                              |
-| `Cancel Abilities with Tag` | Other `GameplayAbilities` that have these `GameplayTags` in their `Ability Tags` will be canceled when this `GameplayAbility` is activated.                                                   |
-| `Block Abilities with Tag`  | Other `GameplayAbilities` that have these `GameplayTags` in their `Ability Tags` are blocked from activating while this `GameplayAbility` is active.                                          |
-| `Activation Owned Tags`     | These `GameplayTags` are given to the `GameplayAbility's` owner while this `GameplayAbility` is active. Remember these are not replicated.                                                    |
-| `Activation Required Tags`  | This `GameplayAbility` can only be activated if the owner has **all** of these `GameplayTags`.                                                                                                |
-| `Activation Blocked Tags`   | This `GameplayAbility` cannot be activated if the owner has **any** of these `GameplayTags`.                                                                                                  |
-| `Source Required Tags`      | This `GameplayAbility` can only be activated if the `Source` has **all** of these `GameplayTags`. The `Source` `GameplayTags` are only set if the `GameplayAbility` is triggered by an event. |
-| `Source Blocked Tags`       | This `GameplayAbility` cannot be activated if the `Source` has **any** of these `GameplayTags`. The `Source` `GameplayTags` are only set if the `GameplayAbility` is triggered by an event.   |
-| `Target Required Tags`      | This `GameplayAbility` can only be activated if the `Target` has **all** of these `GameplayTags`. The `Target` `GameplayTags` are only set if the `GameplayAbility` is triggered by an event. |
-| `Target Blocked Tags`       | This `GameplayAbility` cannot be activated if the `Target` has **any** of these `GameplayTags`. The `Target` `GameplayTags` are only set if the `GameplayAbility` is triggered by an event.   |
+| `Ability Tags`              | `GameplayTags` that the `GameplayAbility` owns. These are just `GameplayTags` to describe the `GameplayAbility`.（仅描述使用）                                                                              |
+| `Cancel Abilities with Tag` | Other `GameplayAbilities` that have these `GameplayTags` in their `Ability Tags` will be canceled when this `GameplayAbility` is activated. (取消当前技能)                                                 |
+| `Block Abilities with Tag`  | Other `GameplayAbilities` that have these `GameplayTags` in their `Ability Tags` are blocked from activating while this `GameplayAbility` is active.   （阻止当前技能激活）                                       |
+| `Activation Owned Tags`     | These `GameplayTags` are given to the `GameplayAbility's` owner while this `GameplayAbility` is active. Remember these are not replicated.    （激活时提供给owner，不会被复制）                                                |
+| `Activation Required Tags`  | This `GameplayAbility` can only be activated if the owner has **all** of these `GameplayTags`.  （全满足该项tag要求时激活技能）                                                                                              |
+| `Activation Blocked Tags`   | This `GameplayAbility` cannot be activated if the owner has **any** of these `GameplayTags`. （有任一该项中的tag时不允许激活）                                                                                                 |
+| `Source Required Tags`      | This `GameplayAbility` can only be activated if the `Source` has **all** of these `GameplayTags`. The `Source` `GameplayTags` are only set if the `GameplayAbility` is triggered by an event. （对Source要求）|
+| `Source Blocked Tags`       | This `GameplayAbility` cannot be activated if the `Source` has **any** of these `GameplayTags`. The `Source` `GameplayTags` are only set if the `GameplayAbility` is triggered by an event.  （对Source要求） |
+| `Target Required Tags`      | This `GameplayAbility` can only be activated if the `Target` has **all** of these `GameplayTags`. The `Target` `GameplayTags` are only set if the `GameplayAbility` is triggered by an event. （对Target要求）|
+| `Target Blocked Tags`       | This `GameplayAbility` cannot be activated if the `Target` has **any** of these `GameplayTags`. The `Target` `GameplayTags` are only set if the `GameplayAbility` is triggered by an event.  （对Target要求） |
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-ga-spec"></a>
 #### 4.6.10 Gameplay Ability Spec
-A `GameplayAbilitySpec` exists on the `ASC` after a `GameplayAbility` is granted and defines the activatable `GameplayAbility` - `GameplayAbility` class, level, input bindings, and runtime state that must be kept separate from the `GameplayAbility` class.
+授予`GameplayAbility`后，`GameplayAbilitySpec` 存在于 `ASC`上并定义了可激活的 `GameplayAbility` - `GameplayAbility` 类, level, 输入绑定, 必须与`GameplayAbility` 类分开保存的运行状态.
 
-When a `GameplayAbility` is granted on the server, the server replicates the `GameplayAbilitySpec` to the owning client so that she may activate it.
+当一个 `GameplayAbility`在server上被授予时, 它会同步 `GameplayAbilitySpec`到对应的客户端上以便可以激活它.
 
-Activating a `GameplayAbilitySpec` will create an instance (or not for `Non-Instanced` `GameplayAbilities`) of the `GameplayAbility` depending on its `Instancing Policy`.
+激活 `GameplayAbilitySpec` 会创建一个 `GameplayAbility`实例 ( `Non-Instanced` `GameplayAbilities`模式不会) 取决于 `Instancing Policy`.
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-ga-data"></a>
 #### 4.6.11 Passing Data to Abilities
-The general paradigm for `GameplayAbilities` is `Activate->Generate Data->Apply->End`. Sometimes you need to act on existing data. GAS provides a few options for getting external data into your `GameplayAbilities`:
+`GameplayAbilities` 的一般样例是 `Activate->Generate Data->Apply->End`. 有时您需要根据现有数据采取行动. GAS 提供了一些将外部数据导入`GameplayAbilities`的选项:
 
-| Method                                          | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| 方法                                          | 描述                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Activate `GameplayAbility` by Event             | Activate a `GameplayAbility` with an event containing a payload of data. The event's payload is replicated from client to server for local predicted `GameplayAbilities`. Use the two `Optional Object` or the [`TargetData`](#concepts-targeting-data) variables for arbitrary data that does not fit any of the existing variables. The downside to this is that it prevents you from activating the ability with an input bind. To activate a `GameplayAbility` by event, the `GameplayAbility` must have its `Triggers` set up in the `GameplayAbility`. Assign a `GameplayTag` and pick an option for `GameplayEvent`. To send the event, use the function `UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(AActor* Actor, FGameplayTag EventTag, FGameplayEventData Payload)`. |
-| Use `WaitGameplayEvent` `AbilityTask`           | Use the `WaitGameplayEvent` `AbilityTask` to tell the `GameplayAbility` to listen for an event with payload data after it activates. The event payload and the process to send it is the same as activating `GameplayAbilities` by event. The downside to this is that events are not replicated by the `AbilityTask` and should only be used for `Local Only` and `Server Only` `GameplayAbilities`. You potentially could write your own `AbilityTask` that will replicate the event payload.                                                                                                                                                                                                                                                                                               |
-| Use `TargetData`                                | A custom `TargetData` struct is a good way to pass arbitrary data between the client and server.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| Store Data on the `OwnerActor` or `AvatarActor` | Use replicated variables stored on the `OwnerActor`, `AvatarActor`, or any other object that you can get a reference to. This method is the most flexible and will work with `GameplayAbilities` activated by input binds. However, it does not guarantee the data will be synchronized from replication at the time of use. You must ensure that ahead of time - meaning if you set a replicated variable and then immediately activate a `GameplayAbility` there is no guarantee the order that will happen on the receiver due to potential packet loss.                                                                                                                                                                                                                                   |
+| Activate `GameplayAbility` by Event             | 使用包含数据负载的事件激活 `GameplayAbility`. 本地预测的 `GameplayAbilities`会将事件所带的数据从客户端复制到服务器. 将两个 `Optional Object` 或者 [`TargetData`](#concepts-targeting-data) 变量用于不适合现有变量的任意数据. 这样做的缺点是它会阻止您通过输入绑定激活该功能. 通过事件激活 `GameplayAbility`, `GameplayAbility`必须有设置自己的 `Triggers`. 分配一个 `GameplayTag` 并为 `GameplayEvent`选择一个选项. 使用`UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(AActor* Actor, FGameplayTag EventTag, FGameplayEventData Payload)`发送事件. |
+| Use `WaitGameplayEvent` `AbilityTask`           | 使用 `WaitGameplayEvent` `AbilityTask` 告诉 `GameplayAbility` 在激活后监听带有有效负载数据的事件. 事件有效负载及其发送过程与通过事件激活 `GameplayAbilities` 相同. 缺点是事件不会被`AbilityTask`同步复制，所以只能用在 `Local Only` 和 `Server Only` `GameplayAbilities`. 你可能需要实现自己的 `AbilityTask` 来同步这些事件负载数据.                                                                                                                                                                                                                                                                                               |
+| Use `TargetData`                                | 自定义一个 `TargetData` 在服务器与客户端之间传递任意数据是非常好的方法.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Store Data on the `OwnerActor` or `AvatarActor` | 使用保存在 `OwnerActor`, `AvatarActor`, 或其他 object 上可复制的变量的引用. 此方法最灵活，可与输入绑定激活的`GameplayAbilities` 一起使用. 然而, 它不保证数据在使用时会从复制同步. 您必须提前确保这一点 - 这意味着如果您设置复制变量然后立即激活 `GameplayAbility`，则由于潜在的数据包丢失，无法保证接收器上发生的顺序.                                                                                                                                                                                                                                   |
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-ga-commit"></a>
 #### 4.6.12 Ability Cost and Cooldown
-`GameplayAbilities` come with functionality for optional costs and cooldowns. Costs are predefined amounts of `Attributes` that the `ASC` must have in order to activate the `GameplayAbility` implemented with an `Instant` `GameplayEffect` ([`Cost GE`](#concepts-ge-cost)). Cooldowns are timers that prevent the reactivation of a `GameplayAbility` until it expires and is implemented with a `Duration` `GameplayEffect` ([`Cooldown GE`](#concepts-ge-cooldown)).
+`GameplayAbilities` 具有可选cost消耗和冷却时间的功能. Costs 是 `ASC` 必须有的一些预定义的 `Attributes` 来激活 `Instant` `GameplayEffect` ([`Cost GE`](#concepts-ge-cost))实现的 `GameplayAbility`. Cooldowns 是阻止 `GameplayAbility`在过期之前被再次激活的计时器，他是一种 `Duration` `GameplayEffect` ([`Cooldown GE`](#concepts-ge-cooldown)).
 
-Before a `GameplayAbility` calls `UGameplayAbility::Activate()`, it calls `UGameplayAbility::CanActivateAbility()`. This function checks if the owning `ASC` can afford the cost (`UGameplayAbility::CheckCost()`) and ensures that the `GameplayAbility` is not on cooldown (`UGameplayAbility::CheckCooldown()`).
+在 `GameplayAbility` 调用 `UGameplayAbility::Activate()`之前会先调用 `UGameplayAbility::CanActivateAbility()`. 这个函数检查`ASC` 是否能承担消耗 (`UGameplayAbility::CheckCost()`) 并确保 `GameplayAbility` 不处于冷却期 (`UGameplayAbility::CheckCooldown()`).
 
-After a `GameplayAbility` calls `Activate()`, it can optionally commit the cost and cooldown at any time using `UGameplayAbility::CommitAbility()` which calls `UGameplayAbility::CommitCost()` and `UGameplayAbility::CommitCooldown()`. The designer may choose to call `CommitCost()` or `CommitCooldown()` separately if they shouldn't be committed at the same time. Committing cost and cooldown calls `CheckCost()` and `CheckCooldown()` one more time and is the last chance for the `GameplayAbility` to fail related to them. The owning `ASC's` `Attributes` could potentially change after a `GameplayAbility` is activated, failing to meet the cost at time of commit. Committing the cost and cooldown can be [locally predicted](#concepts-p) if the [prediction key](#concepts-p-key) is valid at the time of commit.
+在`GameplayAbility` 调用 `Activate()`后, 它可以选择使用`UGameplayAbility::CommitAbility()`随时提交消耗 `UGameplayAbility::CommitCost()` 和冷却时间 `UGameplayAbility::CommitCooldown()`. 如果不同时发生开发者可以分别调用 `CommitCost()` 和 `CommitCooldown()`. 提交消耗和冷却会再次调用 `CheckCost()` 和 `CheckCooldown()`，这也是`GameplayAbility`与失败它们相关的最后机会. 激活`GameplayAbility`后所属 `ASC` 的`Attributes`可能会发生变化, 无法满足提交时的成本. 如果[prediction key](#concepts-p-key)在提交时有效， 提交消耗和冷却可以被[本地预测](#concepts-p) .
 
-See [`CostGE`](#concepts-ge-cost) and [`CooldownGE`](#concepts-ge-cooldown) for implementation details.
+参考 [`CostGE`](#concepts-ge-cost) 和 [`CooldownGE`](#concepts-ge-cooldown) 获取实现详情.
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-ga-leveling"></a>
 #### 4.6.13 Leveling Up Abilities
-There are two common methods for leveling up an ability:
+有两种方法可以提升ability:
 
 | Level Up Method                            | Description                                                                                                                                                                                                      |
 | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Ungrant and Regrant at the New Level       | Ungrant (remove) the `GameplayAbility` from the `ASC` and regrant it back at the next level on the server. This terminates the `GameplayAbility` if it was active at the time.                                   |
-| Increase the `GameplayAbilitySpec's` Level | On the server, find the `GameplayAbilitySpec`, increase its level, and mark it dirty so that replicates to the owning client. This method does not terminate the `GameplayAbility` if it was active at the time. |
+| Ungrant and Regrant at the New Level       | Ungrant (remove) the `GameplayAbility` from the `ASC` and regrant it back at the next level on the server. This terminates the `GameplayAbility` if it was active at the time.(删除再添加)                                   |
+| Increase the `GameplayAbilitySpec's` Level | On the server, find the `GameplayAbilitySpec`, increase its level, and mark it dirty so that replicates to the owning client. This method does not terminate the `GameplayAbility` if it was active at the time.（修改level等级） |
 
-The main difference between the two methods is if you want active `GameplayAbilities` to be canceled at the time of level up. You will most likely use both methods depending on your `GameplayAbilities`. I recommend adding a `bool` to your `UGameplayAbility` subclass specifying which method to use.
+两者之间的主要区别是你是否希望在升级时取消当前已激活的 `GameplayAbilities`. 取决于不同类型的 `GameplayAbilities`你可能两种方法都会使用. 我建议添加一个 `bool` 到你的 `UGameplayAbility` 子类来说明使用哪种方式.
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-ga-sets"></a>
 #### 4.6.14 Ability Sets
-`GameplayAbilitySets` are convenience `UDataAsset` classes for holding input bindings and lists of startup `GameplayAbilities` for Characters with logic to grant the `GameplayAbilities`. Subclasses can also include extra logic or properties. Paragon had a `GameplayAbilitySet` per hero that included all of their given `GameplayAbilities`.
+`GameplayAbilitySets` 是一种很方便的 `UDataAsset` 类，用于保存输入绑定和角色的启动 `GameplayAbilities` 列表，并具有授予 `GameplayAbilities` 的逻辑. 子类可以包含额外的逻辑或属性. Paragon 每个英雄有一个 `GameplayAbilitySet` 包含他们所有的`GameplayAbilities`.
 
-I find this class to be unnecessary at least given what I've seen of it so far. The Sample Project handles all of the functionality of `GameplayAbilitySets` inside of the `GDCharacterBase` and its subclasses.
+我发现这个类并不是必要的，至少从我到目前为止所看到的来看是这样. 示例项目在 `GDCharacterBase` 及其子类内部处理 `GameplayAbilitySets` 的所有功能.
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-ga-batching"></a>
 #### 4.6.15 Ability Batching
-Traditional `Gameplay Ability` lifecycle involves a minimum of two or three RPCs from the client to the server.
+传统的 `Gameplay Ability` 生命周期涉及从客户端到服务器的至少两到三个RPC.
 
 1. `CallServerTryActivateAbility()`
 1. `ServerSetReplicatedTargetData()` (Optional)
 1. `ServerEndAbility()`
 
-If a `GameplayAbility` performs all of these actions in one atomic grouping in a frame, we can optimize this workflow to batch (combine) all two or three RPCs into one RPC. `GAS` refers to this RPC optimization as `Ability Batching`. The common example of when to use `Ability Batching` is for hitscan guns. Hitscan guns activate, do a line trace, send the [`TargetData`](#concepts-targeting-data) to the server, and end the ability all in one atomic group in one frame. The [GASShooter](https://github.com/tranek/GASShooter) sample project demonstrates this technique for its hitscan guns.
+如果 `GameplayAbility` 在一帧或一个原子分组中执行这些所有的操作，我们可以优化此工作流程，将所有的两个或三个RPC组合到一个RPC中. `GAS` 称这种RPC优化为 `Ability Batching`. 最常见使用该能力的例子是hitscan guns(命中扫描枪). Hitscan guns 激活后，发出一个射线检测并将结果 [`TargetData`](#concepts-targeting-data)发送给服务器 , 在一帧内结束这个原子组操作. [GASShooter](https://github.com/tranek/GASShooter) 实例工程中展示了这中使用方式.
 
-Semi-Automatic guns are the best case scenario and batch the `CallServerTryActivateAbility()`, `ServerSetReplicatedTargetData()` (the bullet hit result), and `ServerEndAbility()` into one RPC instead of three RPCs.
+Semi-Automatic guns（半自动枪）是将 `CallServerTryActivateAbility()`, `ServerSetReplicatedTargetData()` (the bullet hit result), 和 `ServerEndAbility()` 三个RPC合并为一个的最好示例.
 
-Full-Automatic/Burst guns batch `CallServerTryActivateAbility()` and `ServerSetReplicatedTargetData()` for the first bullet into one RPC instead of two RPCs. Each subsequent bullet is its own `ServerSetReplicatedTargetData()` RPC. Finally, `ServerEndAbility()` is sent as a separate RPC when the gun stops firing. This is a worst case scenario where we only save one RPC on the first bullet instead of two. This scenario could have also been implemented with activating the ability via a [`Gameplay Event`](#concepts-ga-data) which would send the bullet's `TargetData` in with the `EventPayload` to the server from the client. The downside of the latter approach is that the `TargetData` would have to be generated externally to the ability whereas the batching approach generates the `TargetData` inside of the ability.
+Full-Automatic/Burst guns(全自动枪或者连发枪) 在第一颗子弹时合并 `CallServerTryActivateAbility()` 与 `ServerSetReplicatedTargetData()`为一个RPC. 后面的每个子弹会调用自己的 `ServerSetReplicatedTargetData()` RPC. 最后, 枪停火后会单独发一个独立的RPC `ServerEndAbility()`. 此场景也可以通过通过 [`Gameplay Event`](#concepts-ga-data) 激活该功能来实现，该 [`Gameplay Event`](#concepts-ga-data) 会将子弹的 `TargetData` 与 `EventPayload` 一起从客户端发送到服务器. 后一种方法的缺点是 `TargetData` 必须在ability外部生成，而batching approach则在功能内部生成.
 
-`Ability Batching` is disabled by default on the [`ASC`](#concepts-asc). To enable `Ability Batching`, override `ShouldDoServerAbilityRPCBatch()` to return true:
+`Ability Batching`默认情况下在[`ASC`](#concepts-asc)上是禁止的. 开启 `Ability Batching`需要重载 `ShouldDoServerAbilityRPCBatch()` 并返回 true:
 
 ```c++
 virtual bool ShouldDoServerAbilityRPCBatch() const override { return true; }
 ```
 
-Now that `Ability Batching` is enabled, before activating abilities that you want batched, you must create a `FScopedServerAbilityRPCBatcher` struct beforehand. This special struct will try to batch any abilities following it within its scope. Once the `FScopedServerAbilityRPCBatcher` falls out of scope, any abilities activated will not try to batch. `FScopedServerAbilityRPCBatcher` works by having special code in each of the functions that can be batched that intercepts the call from sending the RPC and instead packs the message into a batch struct. When `FScopedServerAbilityRPCBatcher` falls out of scope, it automatically RPCs this batch struct to the server in `UAbilitySystemComponent::EndServerAbilityRPCBatch()`. The server receives the batch RPC in `UAbilitySystemComponent::ServerAbilityRPCBatch_Internal(FServerAbilityRPCBatch& BatchInfo)`. The `BatchInfo` parameter will contain flags for if the ability should end and if input was pressed at the time of activation and the `TargetData` if that was included. This is a good function to put a breakpoint on to confirm that your batching is working properly. Alternatively, use the cvar `AbilitySystem.ServerRPCBatching.Log 1` to enable special ability batching logging.
+现在 `Ability Batching` 开启了, 在激活你想合并的abilitie前, 你需要先创建一个 `FScopedServerAbilityRPCBatcher` struct. 这个特殊的结构将尝试在其范围内合并其后的任何abilities. 超出范围就不在合并了. `FScopedServerAbilityRPCBatcher`的工作原理是在每个可批处理的函数中包含特殊代码，拦截发送 RPC 的调用，并将消息打包到批处理结构中. 当超出 `FScopedServerAbilityRPCBatcher` 范围后, 它会自动将合并的结构体在 `UAbilitySystemComponent::EndServerAbilityRPCBatch()`RPC发送给服务器. 服务器接收 batch RPC 在 `UAbilitySystemComponent::ServerAbilityRPCBatch_Internal(FServerAbilityRPCBatch& BatchInfo)`. `BatchInfo` 参数将包含用于指示该能力是否应结束、激活时是否按下输入的标志以及可能包含的 `TargetData`. 这是一个很好的断点地方来确认你的合批是否生效. 或者, 使用 cvar `AbilitySystem.ServerRPCBatching.Log 1` 可以开启 batching logging.
 
-This mechanism can only be done in C++ and can only activate abilities by their `FGameplayAbilitySpecHandle`.
+此机制只能在C++中实现并只能通过`FGameplayAbilitySpecHandle`激活.
 
 ```c++
 bool UGSAbilitySystemComponent::BatchRPCTryActivateAbility(FGameplayAbilitySpecHandle InAbilityHandle, bool EndAbilityImmediately)
@@ -2204,9 +2204,9 @@ bool UGSAbilitySystemComponent::BatchRPCTryActivateAbility(FGameplayAbilitySpecH
 }
 ```
 
-GASShooter reuses the same batched `GameplayAbility` for semi-automatic and full-automatic guns which never directly call `EndAbility()` (it is handled outside of the ability by a local-only ability that manages player input and the call to the batched ability based on the current firemode). Since all of the RPCs must happen within the scope of the `FScopedServerAbilityRPCBatcher`, I provide the `EndAbilityImmediately` parameter so that the controlling/managing local-only can specify whether this ability should batch the `EndAbility()` call (semi-automatic), or not batch the `EndAbility()` call (full-automatic) and the `EndAbility()` call will happen sometime later in its own RPC.
+GASShooter 对全自动、半自动枪重用了相同的 batched `GameplayAbility`，他们不会直接调用 `EndAbility()` (它是由仅本地能力在ability之外处理的，该能力管理玩家输入以及基于当前开火模式对批量能力的调用). 由于所有 RPCs 必须在 `FScopedServerAbilityRPCBatcher`范围内, 我提供了 `EndAbilityImmediately` 参数来控制/管理 本地功能是否应批处理 `EndAbility()` (半自动步枪), 或者不处理 `EndAbility()`  (全自动步枪)且 `EndAbility()`在后面自己的 RPC中调用.
 
-GASShooter exposes a Blueprint node to allow batching abilities which the aforementioned local-only ability uses to trigger the batched ability.
+GASShooter 暴露一个 Blueprint 节点来允许batching能力，上述仅限本地的ability使用该能力来触发批处理ability.
 
 ![Activate Batched Ability](https://github.com/tranek/GASDocumentation/raw/master/Images/batchabilityactivate.png)
 
@@ -2214,14 +2214,14 @@ GASShooter exposes a Blueprint node to allow batching abilities which the aforem
 
 <a name="concepts-ga-netsecuritypolicy"></a>
 #### 4.6.16 Net Security Policy
-A `GameplayAbility`'s `NetSecurityPolicy` determines where should an ability execute on the network. It provides protection from clients attempting to execute restricted abilities.
+`GameplayAbility`的 `NetSecurityPolicy` 决定执行在网络的哪一端. 它可以阻止客户端执行一些敏感的操作.
 
-| `NetSecurityPolicy`     | Description                                                                                                                                        |
+| `NetSecurityPolicy`     | 描述                                                                                                                                        |
 | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ClientOrServer`        | No security requirements. Client or server can trigger execution and termination of this ability freely.                                           |
-| `ServerOnlyExecution`   | A client requesting execution of this ability will be ignored by the server. Clients can still request that the server cancel or end this ability. |
-| `ServerOnlyTermination` | A client requesting cancellation or ending of this ability will be ignored by the server. Clients can still request execution of the ability.      |
-| `ServerOnly`            | Server controls both execution and termination of this ability. A client making any requests will be ignored.                                      |
+| `ClientOrServer`        | 没有安全要求. Client 或 server 都可以自由开启或结束.  	|
+| `ServerOnlyExecution`   | 客户端请求执行会被忽略，但客户端可以请求取消或结束. |
+| `ServerOnlyTermination` | 客户端请求取消或结束会被忽略，但可以请求执行.      |
+| `ServerOnly`            | 服务器决定执行或者取消，客户端任何请求都被忽略.    	|
 
 **[⬆ Back to Top](#table-of-contents)**
 
@@ -2230,45 +2230,45 @@ A `GameplayAbility`'s `NetSecurityPolicy` determines where should an ability exe
 
 <a name="concepts-at-definition"></a>
 ### 4.7.1 Ability Task Definition
-`GameplayAbilities` only execute in one frame. This does not allow for much flexibility on its own. To do actions that happen over time or require responding to delegates fired at some point later in time we use latent actions called `AbilityTasks`.
+`GameplayAbilities` 仅在一帧中执行. 这本身并没有太大的灵活性. 为了执行随时间推移发生的操作或需要响应稍后某个时间点触发的委托我们使用 `AbilityTasks`.
 
-GAS comes with many `AbilityTasks` out of the box:
-* Tasks for moving Characters with `RootMotionSource`
-* A task for playing animation montages
-* Tasks for responding to `Attribute` changes
-* Tasks for responding to `GameplayEffect` changes
-* Tasks for responding to player input
+GAS 附带了许多开箱即用的 `AbilityTasks` :
+* Tasks for moving Characters with `RootMotionSource`     【角色移动】
+* A task for playing animation montages	      【播放动画】
+* Tasks for responding to `Attribute` changes			【修改属性】
+* Tasks for responding to `GameplayEffect` changes【修改GE】
+* Tasks for responding to player input【相应输入】
 * and more
 
-The `UAbilityTask` constructor enforces a hardcoded game-wide maximum of 1000 concurrent `AbilityTasks` running at the same time. Keep this in mind when designing `GameplayAbilities` for games that can have hundreds of characters in the world at the same time like RTS games.
+`UAbilityTask`在构造函数中硬编码了在游戏范围内最多同时运行1000个并发 `AbilityTasks`. 在设计类似RTS这种同时又数百个角色的游戏是需要记住这一点.
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-at-definition"></a>
 ### 4.7.2 Custom Ability Tasks
-Often you will be creating your own custom `AbilityTasks` (in C++). The Sample Project comes with two custom `AbilityTasks`:
-1. `PlayMontageAndWaitForEvent` is a combination of the default `PlayMontageAndWait` and `WaitGameplayEvent` `AbilityTasks`. This allows animation montages to send gameplay events from `AnimNotifies` back to the `GameplayAbility` that started them. Use this to trigger actions at specific times during animation montages.
-1. `WaitReceiveDamage` listens for the `OwnerActor` to receive damage. The passive armor stacks `GameplayAbility` removes a stack of armor when the hero receives an instance of damage.
+你需要经常在C++中定义你自己的`AbilityTasks`. 示例项目附带两个自定义的`AbilityTasks`:
+1. `PlayMontageAndWaitForEvent` 是默认`PlayMontageAndWait` 和 `WaitGameplayEvent` `AbilityTasks`的组合. 这允许动画蒙太奇将游戏事件从 `AnimNotify` 发送回启动它们的 `GameplayAbility`. 使用它在动画蒙太奇期间的特定时间触发动作.
+1. `WaitReceiveDamage` 用于监听 `OwnerActor` 收到伤害. 在英雄收到伤害时，被动护甲层数减少.
 
-`AbilityTasks` are composed of:
-* A static function that creates new instances of the `AbilityTask`
-* Delegates that are broadcasted on when the `AbilityTask` completes its purpose
-* An `Activate()` function to start its main job, bind to external delegates, etc.
-* An `OnDestroy()` function for cleanup, including external delegates that it bound to
-* Callback functions for any external delegates that it bound to
-* Member variables and any internal helper functions
+`AbilityTasks` 由以下部分组成:
+* 一个静态函数创建 `AbilityTask`的实例
+* z在`AbilityTask` 完成是触发的一个代理
+* 一个 `Activate()` 函数来激活job,绑定外部代理等.
+* 一个 `OnDestroy()` 函数做清理，包含外部绑定的代理
+* 绑定到的任何外部委托的回调函数
+* 成员变量和任何内部辅助函数
 
-**Note:** `AbilityTasks` can only declare one type of output delegate. All of your output delegates must be of this type, regardless if they use the parameters or not. Pass default values for unused delegate parameters.
+**注意:** `AbilityTasks` 只能声明一种类型的输出委托. 所有输出委托都必须属于此类型，无论它们是否使用参数. 不使用传入默认值.
 
-`AbilityTasks` only run on the Client or Server that is running the owning `GameplayAbility`; however, `AbilityTasks` can be set to run on simulated clients by setting `bSimulatedTask = true;` in the `AbilityTask` constructor, overriding `virtual void InitSimulatedTask(UGameplayTasksComponent& InGameplayTasksComponent);`, and setting any member variables to be replicated. This is only useful in rare situations like movement `AbilityTasks` where you don't want to replicate every movement change but instead simulate the entire movement `AbilityTask`. All of the `RootMotionSource` `AbilityTasks` do this. See `AbilityTask_MoveToLocation.h/.cpp` as an example.
+`AbilityTasks` 只运行在所属`GameplayAbility`的客户端或服务器; 但是，可以通过在 `AbilityTask` 构造中设置`bSimulatedTask = true;`将`AbilityTasks`设置为在模拟客户端simulated clients上运行, 重载 `virtual void InitSimulatedTask(UGameplayTasksComponent& InGameplayTasksComponent);`, 并设置要复制的任何成员变量. 这仅在极少数情况下有用，例如移动 `AbilityTasks`，你不想复制每个移动改变而是模拟整个移动的`AbilityTask`. 整个 `RootMotionSource` `AbilityTasks` 做的就是这些. 参考 `AbilityTask_MoveToLocation.h/.cpp`.
 
-`AbilityTasks` can `Tick` if you set `bTickingTask = true;` in the `AbilityTask` constructor and override `virtual void TickTask(float DeltaTime);`. This is useful when you need to lerp values smoothly across frames. See `AbilityTask_MoveToLocation.h/.cpp` as an example.
+如果你在`AbilityTasks`的构造中将`bTickingTask = true;` 并重载 `virtual void TickTask(float DeltaTime);`则可让Task `Tick`. 当您需要跨帧平滑地对值进行 lerp 时，这非常有用. 参考 `AbilityTask_MoveToLocation.h/.cpp`.
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-at-using"></a>
 ### 4.7.3 Using Ability Tasks
-To create and activate an `AbilityTask` in C++ (From `GDGA_FireGun.cpp`):
+在C++中创建并激活一个 `AbilityTask`(From `GDGA_FireGun.cpp`):
 ```c++
 UGDAT_PlayMontageAndWaitForEvent* Task = UGDAT_PlayMontageAndWaitForEvent::PlayMontageAndWaitForEvent(this, NAME_None, MontageToPlay, FGameplayTagContainer(), 1.0f, NAME_None, false, 1.0f);
 Task->OnBlendOut.AddDynamic(this, &UGDGA_FireGun::OnCompleted);
@@ -2279,19 +2279,19 @@ Task->EventReceived.AddDynamic(this, &UGDGA_FireGun::EventReceived);
 Task->ReadyForActivation();
 ```
 
-In Blueprint, we just use the Blueprint node that we create for the `AbilityTask`. We don't have to call `ReadyForActivation()`. That is automatically called by `Engine/Source/Editor/GameplayTasksEditor/Private/K2Node_LatentGameplayTaskCall.cpp`. `K2Node_LatentGameplayTaskCall` also automatically calls `BeginSpawningActor()` and `FinishSpawningActor()` if they exist in your `AbilityTask` class (see `AbilityTask_WaitTargetData`). To reiterate, `K2Node_LatentGameplayTaskCall` only does automagic sorcery for Blueprint. In C++, we have to manually call `ReadyForActivation()`, `BeginSpawningActor()`, and `FinishSpawningActor()`.
+我们可以使用蓝图节点创建 `AbilityTask`. 不需要调用 `ReadyForActivation()`. 它会自动被`Engine/Source/Editor/GameplayTasksEditor/Private/K2Node_LatentGameplayTaskCall.cpp`调用. `K2Node_LatentGameplayTaskCall` 也会自动调用 `BeginSpawningActor()` 和 `FinishSpawningActor()` 如果他们存在于你的 `AbilityTask` class (参考 `AbilityTask_WaitTargetData`). 重申一下, `K2Node_LatentGameplayTaskCall` 只对蓝图有效. 在C++我们需要手动调用 `ReadyForActivation()`, `BeginSpawningActor()`, 和 `FinishSpawningActor()`.
 
 ![Blueprint WaitTargetData AbilityTask](https://github.com/tranek/GASDocumentation/raw/master/Images/abilitytask.png)
 
-To manually cancel an `AbilityTask`, just call `EndTask()` on the `AbilityTask` object in Blueprint (called `Async Task Proxy`) or in C++.
+在蓝图中或C++中，取消 `AbilityTask`只需要手动调用其上的 `EndTask()`就可以  (called `Async Task Proxy`).
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-at-rms"></a>
 ### 4.7.4 Root Motion Source Ability Tasks
-GAS comes with `AbilityTasks` for moving `Characters` over time for things like knockbacks, complex jumps, pulls, and dashes using `Root Motion Sources` hooked into the `CharacterMovementComponent`.
+GAS 附带了可以随时间推移移动 `Characters`的`AbilityTasks`，使用`Root Motion Sources`挂到角色的 `CharacterMovementComponent`实现击退、冲刺、复杂的跳跃等操作.
 
-**Note:** Predicting `RootMotionSource` `AbilityTasks` works up to engine version 4.19 and 4.25+. Prediction is bugged for engine versions 4.20-4.24; however, the `AbilityTasks` still perform their function in multiplayer with minor net corrections and work perfectly in single player. It is possible to cherry pick the [prediction fix](https://github.com/EpicGames/UnrealEngine/commit/94107438dd9f490e7b743f8e13da46927051bf33#diff-65f6196f9f28f560f95bd578e07e290c) from 4.25 into a custom 4.20-4.24 engine.
+**注意:** 预测 `RootMotionSource` `AbilityTasks` 只对 4.19 和 4.25以上版本引擎有效. 4.20-4.24版本中存在bug; 然而, `AbilityTasks`在多人游戏或较小的网络修正后的单人游戏中可以完美运行. It is possible to cherry pick the [prediction fix](https://github.com/EpicGames/UnrealEngine/commit/94107438dd9f490e7b743f8e13da46927051bf33#diff-65f6196f9f28f560f95bd578e07e290c) from 4.25 into a custom 4.20-4.24 engine.
 
 **[⬆ Back to Top](#table-of-contents)**
 
