@@ -2300,41 +2300,41 @@ GAS 附带了可以随时间推移移动 `Characters`的`AbilityTasks`，使用`
 
 <a name="concepts-gc-definition"></a>
 #### 4.8.1 Gameplay Cue Definition
-`GameplayCues` (`GC`) execute non-gameplay related things like sound effects, particle effects, camera shakes, etc. `GameplayCues` are typically replicated (unless explicitly `Executed`, `Added`, or `Removed` locally) and predicted.
+`GameplayCues` (`GC`) 执行于游戏无关的事情，比如音效、特效、相机抖动等. `GameplayCues` 通常是可以被预测 (除非明确只本地执行 `Executed`, `Added`, or `Removed` )和同步的.
 
-We trigger `GameplayCues` by sending a corresponding `GameplayTag` with the **mandatory parent name of `GameplayCue.`** and an event type (`Execute`, `Add`, or `Remove`) to the `GameplayCueManager` via the `ASC`. `GameplayCueNotify` objects and other `Actors` that implement the `IGameplayCueInterface` can subscribe to these events based on the `GameplayCue's` `GameplayTag` (`GameplayCueTag`).
+我们通过发送带有 **强制父类名称**的相应 `GameplayTag`来触发`GameplayCues`,以及通过`ASC`向 `GameplayCueManager` 发送 (`Execute`, `Add`, or `Remove`) 事件. 实现 `IGameplayCueInterface` 接口的 `GameplayCueNotify` objects 和其他 `Actors`可以订阅基于 `GameplayCue's` `GameplayTag` (`GameplayCueTag`)的事件.
 
-**Note:** Just to reiterate, `GameplayCue` `GameplayTags` need to start with the parent `GameplayTag` of `GameplayCue`. So for example, a valid `GameplayCue` `GameplayTag` might be `GameplayCue.A.B.C`.
+**注意:** 重申一下, `GameplayCue` `GameplayTags` 必须以 `GameplayCue`做父节点. 所以对于一个有效的 `GameplayCue` `GameplayTag`可能是 `GameplayCue.A.B.C`.
 
-There are two classes of `GameplayCueNotifies`, `Static` and `Actor`. They respond to different events and different types of `GameplayEffects` can trigger them. Override the corresponding event with your logic.
+有两种`GameplayCueNotifies`类, `Static` 和 `Actor`. 它们响应不同的事件，不同类型的 `GameplayEffects` 可以触发它们。用您的逻辑覆盖相应的事件.
 
 | `GameplayCue` Class                                                                                                                  | Event             | `GameplayEffect` Type    | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | ------------------------------------------------------------------------------------------------------------------------------------ | ----------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`GameplayCueNotify_Static`](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/UGameplayCueNotify_Static/index.html) | `Execute`         | `Instant` or `Periodic`  | Static `GameplayCueNotifies` operate on the `ClassDefaultObject` (meaning no instances) and are perfect for one-off effects like hit impacts.                                                                                                                                                                                                                                                                                                                                                                        |
-| [`GameplayCueNotify_Actor`](https://docs.unrealengine.com/en-US/BlueprintAPI/GameplayCueNotify/index.html)                           | `Add` or `Remove` | `Duration` or `Infinite` | Actor `GameplayCueNotifies` spawn a new instance when `Added`. Because these are instanced, they can do actions over time until they are `Removed`. These are good for looping sounds and particle effects that will be removed when the backing `Duration` or `Infinite` `GameplayEffect` is removed or by manually calling remove. These also come with options to manage how many are allowed to be `Added` at the same time so that multiple applications of the same effect only start the sounds or particles once. |
+| [`GameplayCueNotify_Static`](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/UGameplayCueNotify_Static/index.html) | `Execute`         | `Instant` or `Periodic`  | Static `GameplayCueNotifies` operate on the `ClassDefaultObject` (meaning no instances) and are perfect for one-off effects like hit impacts.  (对CDO操作，适合一次性的效果)                                                                                                                                                                                                                                                                                                                                                                      |
+| [`GameplayCueNotify_Actor`](https://docs.unrealengine.com/en-US/BlueprintAPI/GameplayCueNotify/index.html)                           | `Add` or `Remove` | `Duration` or `Infinite` | Actor `GameplayCueNotifies` spawn a new instance when `Added`. Because these are instanced, they can do actions over time until they are `Removed`. These are good for looping sounds and particle effects that will be removed when the backing `Duration` or `Infinite` `GameplayEffect` is removed or by manually calling remove. These also come with options to manage how many are allowed to be `Added` at the same time so that multiple applications of the same effect only start the sounds or particles once.（在添加时创建新实例，当时间结束或手动取消时移除，还有一些选项支持设置最大同时添加数量可以做到同时播放多次音效或特效只会响应一次） |
 
-`GameplayCueNotifies` technically can respond to any of the events but this is typically how we use them.
+`GameplayCueNotifies` 从技术上讲可以响应任何事件，但这通常是我们使用它们的方式.
 
-**Note:** When using `GameplayCueNotify_Actor`, check `Auto Destroy on Remove` otherwise subsequent calls to `Add` that `GameplayCueTag` won't work.
+**注意:** 在使用 `GameplayCueNotify_Actor`时, 要判断 `Auto Destroy on Remove` 否则后面调用 `Add` 时 `GameplayCueTag`可能不会生效.
 
-When using an `ASC` [Replication Mode](#concepts-asc-rm) other than `Full`, `Add` and `Remove` `GC` events will fire twice on Server players (listen server) - once for applying the `GE` and again from the "Minimal" `NetMultiCast` to the clients. However, `WhileActive` events will still only fire once. All events will only fire once on clients.
+在使用 `ASC` 除`Full`外的 [Replication Mode](#concepts-asc-rm) 时, `Add` 和 `Remove` `GC` 事件会在（Listen Server）服务器上触发两次 - 一次是应用`GE` 另一次是客户端 "Minimal" `NetMultiCast` . 但是, `WhileActive` 事件仅会产生一次. 在客户端所有事件仅会触发一次.
 
-The Sample Project includes a `GameplayCueNotify_Actor` for stun and sprint effects. It also has a `GameplayCueNotify_Static` for the FireGun's projectile impact. These `GCs` can be optimized further by [triggering them locally](#concepts-gc-local) instead of replicating them through a `GE`. I opted for showing the beginner way of using them in the Sample Project.
+示例工程使用`GameplayCueNotify_Actor`实现了眩晕和冲刺效果. 使用 `GameplayCueNotify_Static` 实现了用于FireGun 射弹影响. 这些 `GCs`可以进一步使用 [triggering them locally](#concepts-gc-local)优化来替代通过`GE`复制. 我在示例项目中向初学者展示了用法.
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-gc-trigger"></a>
 #### 4.8.2 Triggering Gameplay Cues
 
-From inside of a `GameplayEffect` when it is successfully applied (not blocked by tags or immunity), fill in the `GameplayTags` of all the `GameplayCues` that should be triggered.
+当成功应用`GameplayEffect` (没有被tag或免疫阻挡)时,会从 `GameplayEffect` 内部填写应触发的所有 `GameplayCues` 的 `GameplayTags` .
 
 ![GameplayCue Triggered from a GameplayEffect](https://github.com/tranek/GASDocumentation/raw/master/Images/gcfromge.png)
 
-`UGameplayAbility` offers Blueprint nodes to `Execute`, `Add`, or `Remove` `GameplayCues`.
+`UGameplayAbility` 提供蓝图节点 `Execute`, `Add`, 或 `Remove` `GameplayCues`.
 
 ![GameplayCue Triggered from a GameplayAbility](https://github.com/tranek/GASDocumentation/raw/master/Images/gcfromga.png)
 
-In C++, you can call functions directly on the `ASC` (or expose them to Blueprint in your `ASC` subclass):
+在 C++你可以直接调用 `ASC`中函数 (或者将他们暴露给蓝图在你的`ASC`子类 ):
 
 ```c++
 /** GameplayCues can also come on their own. These take an optional effect context to pass through hit result, etc */
@@ -2356,14 +2356,14 @@ void RemoveAllGameplayCues();
 
 <a name="concepts-gc-local"></a>
 #### 4.8.3 Local Gameplay Cues
-The exposed functions for firing `GameplayCues` from `GameplayAbilities` and the `ASC` are replicated by default. Each `GameplayCue` event is a multicast RPC. This can cause a lot of RPCs. GAS also enforces a maximum of two of the same `GameplayCue` RPCs per net update. We avoid this by using local `GameplayCues` where we can. Local `GameplayCues` only `Execute`, `Add`, or `Remove` on the individual client.
+默认情况下，会复制从 `GameplayAbilities` 和 `ASC` 触发 `GameplayCues` 的公开函数. 每个 `GameplayCue` 事件都是一个RPC. 这会造成大量的 RPCs. GAS 还强制每次网络更新最多使用两个相同的`GameplayCue` RPCs . 我们需要尽可能的使用本地`GameplayCues` 来避免这个问题. 本地 `GameplayCues` 只有在个别客户端执行 `Execute`, `Add`, 或 `Remove` .
 
-Scenarios where we can use local `GameplayCues`:
-* Projectile impacts
-* Melee collision impacts
-* `GameplayCues` fired from animation montages
+我们可以使用本地`GameplayCues`的场景:
+* Projectile impacts（炮弹撞击）
+* Melee collision impacts（近战碰撞）
+* `GameplayCues` fired from animation montages（从动画中发出的）
 
-Local `GameplayCue` functions that you should add to your `ASC` subclass:
+你可以将本地`GameplayCue` 方法添加到你的`ASC` 子类:
 
 ```c++
 UFUNCTION(BlueprintCallable, Category = "GameplayCue", Meta = (AutoCreateRefTerm = "GameplayCueParameters", GameplayTagFilter = "GameplayCue"))
@@ -2394,13 +2394,13 @@ void UPAAbilitySystemComponent::RemoveGameplayCueLocal(const FGameplayTag Gamepl
 }
 ```
 
-If a `GameplayCue` was `Added` locally, it should be `Removed` locally. If it was `Added` via replication, it should be `Removed` via replication.
+从本地添加的`GameplayCue`就要本地移除，网络复制中添加的就要通过网络复制移除.
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-gc-parameters"></a>
 #### 4.8.4 Gameplay Cue Parameters
-`GameplayCues` receive a `FGameplayCueParameters` structure containing extra information for the `GameplayCue` as a parameter. If you manually trigger the `GameplayCue` from a function on the `GameplayAbility` or the `ASC`, then you must manually fill in the `GameplayCueParameters` structure that is passed to the `GameplayCue`. If the `GameplayCue` is triggered by a `GameplayEffect`, then the following variables are automatically filled in on the `GameplayCueParameters` structure:
+`GameplayCues` 接收一个 `FGameplayCueParameters` 结构，其中包含 `GameplayCue` 的额外信息作为参数. 如果你从`GameplayAbility` 或 `ASC`中手动触发 `GameplayCue` , 你需要手动填充 `GameplayCueParameters` 结构体参数并将它传递给 `GameplayCue`. 如果是 `GameplayEffect`触发，以下参数会被`GameplayCueParameters`自动填充 :
 
 * AggregatedSourceTags
 * AggregatedTargetTags
@@ -2409,11 +2409,11 @@ If a `GameplayCue` was `Added` locally, it should be `Removed` locally. If it wa
 * [EffectContext](#concepts-ge-context)
 * Magnitude (if the `GameplayEffect` has an `Attribute` for magnitude selected in the dropdown above the `GameplayCue` tag container and a corresponding `Modifier` that affects that `Attribute`)
 
-The `SourceObject` variable in the `GameplayCueParameters` structure is potentially a good place to pass arbitrary data to the `GameplayCue` when triggering the `GameplayCue` manually.
+当手动触发时， `GameplayCueParameters` 中的 `SourceObject`可能是一个传任意数据的好地方.
 
-**Note:** Some of the variables in the parameters structure like `Instigator` might already exist in the `EffectContext`. The `EffectContext` can also contain a `FHitResult` for location of where to spawn the `GameplayCue` in the world. Subclassing `EffectContext` is potentially a good way to pass more data to `GameplayCues`, especially those triggered by a `GameplayEffect`.
+**注意:** 结构体中的一些变量如`Instigator` 可能已经在`EffectContext`中有了. `EffectContext` 还可能包含一下 `FHitResult` 变量标明生成 `GameplayCue`的世界坐标. 子类化 `EffectContext` 可能是给 `GameplayCues`传递更多数据的好方法, 尤其是通过`GameplayEffect`触发的效果.
 
-See the 3 functions in [`UAbilitySystemGlobals`](#concepts-asg) that populate the `GameplayCueParameters` structure for more information. They are virtual so you can override them to autopopulate more information.
+有关详细信息，参阅 [`UAbilitySystemGlobals`](#concepts-asg) 中填充 `GameplayCueParameters` 结构的 3 个函数。它们是虚函数，可以重载它们以自动填充更多信息.
 
 ```c++
 /** Initialize GameplayCue Parameters */
@@ -2426,25 +2426,25 @@ virtual void InitGameplayCueParameters(FGameplayCueParameters& CueParameters, co
 
 <a name="concepts-gc-manager"></a>
 #### 4.8.5 Gameplay Cue Manager
-By default, the `GameplayCueManager` will scan the entire game directory for `GameplayCueNotifies` and load them into memory on play. We can change the path where the `GameplayCueManager` scans by setting it in the `DefaultGame.ini`.
+默认情况下，`GameplayCueManager` 将扫描整个游戏目录以查找 `GameplayCueNotify`，并在游戏开始时将它们加载到内存中。我们可以通过在`DefaultGame.ini`中设置来更改GameplayCueManager扫描的路径.
 
 ```
 [/Script/GameplayAbilities.AbilitySystemGlobals]
 GameplayCueNotifyPaths="/Game/GASDocumentation/Characters"
 ```
 
-We do want the `GameplayCueManager` to scan and find all of the `GameplayCueNotifies`; however, we don't want it to async load every single one on play. This will put every `GameplayCueNotify` and all of their referenced sounds and particles into memory regardless if they're even used in a level. In a large game like Paragon, this can be hundreds of megabytes of unneeded assets in memory and cause hitching and game freezes on startup.
+我们确实想让 `GameplayCueManager`扫描并找到所有的 `GameplayCueNotifies`; 但是我们不希望它在游戏中异步一个个都加载. 这会将每个 `GameplayCueNotify` 及其所有引用的声音和粒子放入内存中，无论它们是否在当前level中使用. 在一个如Paragon的大型项目中, 这可能会在内存中产生数百兆字节的不需要的资源，并导致启动时卡顿和游戏冻结.
 
-An alternative to async loading every `GameplayCue` on startup is to only async load `GameplayCues` as they're triggered in-game. This mitigates the unnecessary memory usage and potential game hard freezes while async loading every `GameplayCue` in exchange for potentially delayed effects for the first time that a specific `GameplayCue` is triggered during play. This potential delay is nonexistent for SSDs. I have not tested on a HDD. If using this option in the UE Editor, there may be slight hitches or freezes during the first load of GameplayCues if the Editor needs to compile particle systems. This is not an issue in builds as the particle systems will already be compiled.
+在启动时异步加载每个 `GameplayCue` 的另一种方法是仅在游戏中触发时再异步加载 . 这可以减少不必要的内存使用和游戏卡住，同时异步加载每个 GameplayCue 以换取在游戏过程中第一次触发特定 `GameplayCue` 时可能出现的延迟效果. 对 SSDs来说这个延迟也是可以忽略的. 我在HDD上并未测试. 如果在 UE 编辑器中使用此选项，并且编辑器需要编译粒子系统，则在第一次加载 `GameplayCues` 期间可能会出现轻微的延迟和卡顿. 在粒子构建后就没问题了.
 
-First we must subclass `UGameplayCueManager` and tell the `AbilitySystemGlobals` class to use our `UGameplayCueManager` subclass in `DefaultGame.ini`.
+首先我们需要继承 `UGameplayCueManager` ，然后在 `DefaultGame.ini` 告诉 `AbilitySystemGlobals` 类使用我们自己的 `UGameplayCueManager`.
 
 ```
 [/Script/GameplayAbilities.AbilitySystemGlobals]
 GlobalGameplayCueManagerClass="/Script/ParagonAssets.PBGameplayCueManager"
 ```
 
-In our `UGameplayCueManager` subclass, override `ShouldAsyncLoadRuntimeObjectLibraries()`.
+在自定义的 `UGameplayCueManager` 子类中重载 `ShouldAsyncLoadRuntimeObjectLibraries()`.
 
 ```c++
 virtual bool ShouldAsyncLoadRuntimeObjectLibraries() const override
@@ -2457,56 +2457,56 @@ virtual bool ShouldAsyncLoadRuntimeObjectLibraries() const override
 
 <a name="concepts-gc-prevention"></a>
 #### 4.8.6 Prevent Gameplay Cues from Firing
-Sometimes we don't want `GameplayCues` to fire. For example if we block an attack, we may not want to play the hit impact attached to the damage `GameplayEffect` or play a custom one instead. We can do this inside of [`GameplayEffectExecutionCalculations`](#concepts-ge-ec) by calling `OutExecutionOutput.MarkGameplayCuesHandledManually()` and then manually sending our `GameplayCue` event to the `Target` or `Source's` `ASC`.
+有时我们不希望 `GameplayCues` 被触发。例如，如果我们阻止攻击，我们可能不想播放附加到伤害 `GameplayEffect` 的命中效果，或者改为播放自定义效果. 我们可以在 [`GameplayEffectExecutionCalculations`](#concepts-ge-ec) 内调用 `OutExecutionOutput.MarkGameplayCuesHandledManually()` 然后手动给`Target` 或 `Source's` `ASC`发送`GameplayCue` 事件.
 
-If you never want any `GameplayCues` to fire on a specific `ASC`, you can set `AbilitySystemComponent->bSuppressGameplayCues = true;`.
+如果您不想在特定 `ASC` 上触发任何 `GameplayCues` , 你可以设置 `AbilitySystemComponent->bSuppressGameplayCues = true;`.
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-gc-batching"></a>
 #### 4.8.7 Gameplay Cue Batching
-Each `GameplayCue` triggered is an unreliable NetMulticast RPC. In situations where we fire multiple `GCs` at the same time, there are a few optimization methods to condense them down into one RPC or save bandwidth by sending less data.
+每个`GameplayCue`都会触发 unreliable NetMulticast RPC. 在我们同时触发多个 `GC` 的情况下，有一些优化方法可以将它们压缩为一个 RPC 或通过发送更少的数据来节省带宽.
 
 <a name="concepts-gc-batching-manualrpc"></a>
 ##### 4.8.7.1 Manual RPC
-Say you have a shotgun that shoots eight pellets. That's eight trace and impact `GameplayCues`. [GASShooter](https://github.com/tranek/GASShooter) takes the lazy approach of combining them into one RPC by stashing all of the trace information into the [`EffectContext`](#concepts-ge-ec) as [`TargetData`](#concepts-targeting-data). While this reduces the RPCs from eight to one, it still sends a lot of data over the network in that one RPC (~500 bytes). A more optimized approach is to send an RPC with a custom struct where you efficiently encode the hit locations or maybe you give it a random seed number to recreate/approximate the impact locations on the receiving side. The clients would then unpack this custom struct and turn back into [locally executed `GameplayCues`](#concepts-gc-local).
+假设你有一把可以发射八颗子弹的霰弹枪. 就会有8个弹道和 `GameplayCues`攻击效果. [GASShooter](https://github.com/tranek/GASShooter) 采用一种惰性方法，将所有跟踪信息作为 [`TargetData`](#concepts-targeting-data) 存储到 [`EffectContext`](#concepts-ge-ec) 中，将它们合并到一个 RPC 中. 这就将8个RPC减少到1个, 在这个RPC中还是会发送大量数据(~500 bytes). 更优化的方法是发送带有自定义结构的 RPC，您可以在其中有效地对命中位置进行编码，或者可以为其提供随机种子数以在接收端重新创建/近似影响位置. 然后客户端解压这个自定义的结构体并在[本地执行  `GameplayCues`](#concepts-gc-local).
 
-How this works:
-1. Declare a `FScopedGameplayCueSendContext`. This suppresses `UGameplayCueManager::FlushPendingCues()` until it falls out of scope, meaning all `GameplayCues` will be queued up until the `FScopedGameplayCueSendContext` falls out of scope.
-1. Override `UGameplayCueManager::FlushPendingCues()` to merge `GameplayCues` that can be batched together based on some custom `GameplayTag` into your custom struct and RPC it to clients.
-1. Clients receive the custom struct and unpack it into locally executed `GameplayCues`.
+实现方法:
+1. 声明一个自己的 `FScopedGameplayCueSendContext`. 这会抑制 `UGameplayCueManager::FlushPendingCues()` 直到它超出范围，这意味着所有 `GameplayCues` 将都会先排队 .
+1. 重写 `UGameplayCueManager::FlushPendingCues()` ,可以基于某些自定义 `GameplayTag` 能一起合并的 `GameplayCues` 合并到您的自定义结构中，并将其 RPC 到客户端.
+1. 客户端接收到自定义结构体解压并本地执行 `GameplayCues`.
 
-This method can also be used when you need specific parameters for your `GameplayCues` that don't fit with what `GameplayCueParameters` offer and you don't want to add them to the `EffectContext` like damage numbers, crit indicator, broken shield indicator, was fatal hit indicator, etc.
+如果 `GameplayCueParameters`提供的参数不能满足或者你有不想添加到`EffectContext`中的数据，比如伤害值，暴击，破甲值，是否是致命一击等数据，你都可以使用这种方式.
 
 https://forums.unrealengine.com/development-discussion/c-gameplay-programming/1711546-fscopedgameplaycuesendcontext-gameplaycuemanager
 
 <a name="concepts-gc-batching-gcsonge"></a>
 ##### 4.8.7.2 Multiple GCs on one GE
-All of the `GameplayCues` on a `GameplayEffect` are sent in one RPC already. By default, `UGameplayCueManager::InvokeGameplayCueAddedAndWhileActive_FromSpec()` will send the whole `GameplayEffectSpec` (but converted to `FGameplayEffectSpecForRPC`) in the unreliable NetMulticast regardless of the `ASC`'s `Replication Mode`. This could potentially be a lot of bandwidth depending on what is in the `GameplayEffectSpec`. We can potentially optimize this by setting the cvar `AbilitySystem.AlwaysConvertGESpecToGCParams 1`. This will convert `GameplayEffectSpecs` to `FGameplayCueParameter` structures and RPC those instead of the whole `FGameplayEffectSpecForRPC`. This potentially saves bandwidth but also has less information, depending on how the `GESpec` is converted to `GameplayCueParameters` and what your `GCs` need to know.
+`GameplayEffect` 上的所有 `GameplayCues` 已在一个 RPC 中发送. 默认情况下，不管`ASC`的 `Replication Mode`为何， `UGameplayCueManager::InvokeGameplayCueAddedAndWhileActive_FromSpec()` 都将在unreliable NetMulticast 中发送整个 `GameplayEffectSpec`（但转换为 FGameplayEffectSpecForRPC）. 根据`GameplayEffectSpec`不同可能会占用大量带宽. 我们可以设置 cvar `AbilitySystem.AlwaysConvertGESpecToGCParams 1`来优化这一点. 它会将 `GameplayEffectSpecs` 转换为 `FGameplayCueParameter` 并 RPC 替代原本整个 `FGameplayEffectSpecForRPC`. 这可能会减少带宽，但携带信息量也会减少，具体取决于 `GESpec` 是如何转换为 `GameplayCueParameters`的以及你的 `GCs` 需要什么信息.
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-gc-events"></a>
 #### 4.8.8 Gameplay Cue Events
-`GameplayCues` respond to specific `EGameplayCueEvents`:
+`GameplayCues` 响应特定的 `EGameplayCueEvents`:
 
 | `EGameplayCueEvent` | Description                                                                                                                                                                                                                                                                                                                         |
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OnActive`          | Called when a `GameplayCue` is activated (added).                                                                                                                                                                                                                                                                                   |
-| `WhileActive`       | Called when `GameplayCue` is active, even if it wasn't actually just applied (Join in progress, etc). This is not `Tick`! It's called once just like `OnActive` when a `GameplayCueNotify_Actor` is added or becomes relevant. If you need `Tick()`, just use the `GameplayCueNotify_Actor`'s `Tick()`. It's an `AActor` after all. |
-| `Removed`           | Called when a `GameplayCue` is removed. The Blueprint `GameplayCue` function that responds to this event is `OnRemove`.                                                                                                                                                                                                             |
+| `OnActive`          | Called when a `GameplayCue` is activated (added)（添加时激活）.                                                                                                                                                                                                                                                                                   |
+| `WhileActive`       | Called when `GameplayCue` is active, even if it wasn't actually just applied (Join in progress, etc). This is not `Tick`! It's called once just like `OnActive` when a `GameplayCueNotify_Actor` is added or becomes relevant. If you need `Tick()`, just use the `GameplayCueNotify_Actor`'s `Tick()`. It's an `AActor` after all.（激活状态 未被应用也会调用，这不是Tick函数，它只会在变得相关时调用一次，Tick需要使用 `GameplayCueNotify_Actor`'s `Tick()` ） |
+| `Removed`           | Called when a `GameplayCue` is removed. The Blueprint `GameplayCue` function that responds to this event is `OnRemove`. （移除）                                                                                                                                                                                                            |
 | `Executed`          | Called when a `GameplayCue` is executed: instant effects or periodic `Tick()`. The Blueprint `GameplayCue` function that responds to this event is `OnExecute`.                                                                                                                                                                     |
 
-Use `OnActive` for anything in your `GameplayCue` that happen at the start of the `GameplayCue` but is okay if late joiners miss. Use `WhileActive` for ongoing effects in the `GameplayCue` that you would want late joiners to see. For example, if you have a `GameplayCue` for a tower structure in a MOBA exploding, you would put the initial explosion particle system and explosion sound in `OnActive` and you would put any residual ongoing fire particles or sounds in the `WhileActive`. In this scenario, it wouldn't make sense for late joiners to replay the initial explosion from `OnActive`, but you would want them to see the persistent, looping fire effects on the ground after the explosion happened from `WhileActive`. `OnRemove` should clean up anything added in `OnActive` and `WhileActive`. `WhileActive` will be called every time an Actor enters the relevancy range of a `GameplayCueNotify_Actor`. `OnRemove` will be called every time an Actor leaves relevancy range of a `GameplayCueNotify_Actor`.
+`GameplayCue`在 `OnActive` 时可以做任何事，后来加入者错过了该函数也没关系. 使用 `WhileActive`在 `GameplayCue`实现你希望后来加入者看到的持续效果. 例如，如果您有一个用于 MOBA 塔爆炸的 GameplayCue，您可以将初始爆炸粒子系统和爆炸声音放入 OnActive 中，并将任何残留的持续火焰粒子或声音放入 WhileActive 中. 在这种情况下，后来加入者从 OnActive 重播初始爆炸是没有意义的，但您希望他们在 WhileActive 发生爆炸后看到地面上持续的、循环的火焰效果. `OnRemove` 需要清理在 `OnActive` 和 `WhileActive` 中添加的任何东西. `WhileActive` 在每次进入`GameplayCueNotify_Actor`相关范围时都会被调用. `OnRemove` 在离开`GameplayCueNotify_Actor`的相关范围时被调用.
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-gc-reliability"></a>
 #### 4.8.9 Gameplay Cue Reliability
 
-`GameplayCues` in general should be considered unreliable and thus unsuited for anything that directly affects gameplay.
+一般来说，`GameplayCues`应该被认为是不可靠的，因此不适合任何直接影响游戏玩法的事情.
 
-**Executed `GameplayCues`:** These `GameplayCues` are applied via unreliable multicasts and are always unreliable.
+**Executed `GameplayCues`:** 这些 `GameplayCues` 通过 unreliable multicasts 实现 并且始终时不可靠的.
 
 **`GameplayCues` applied from `GameplayEffects`:**
 * Autonomous proxy reliably receives `OnActive`, `WhileActive`, and `OnRemove`  
@@ -2520,15 +2520,15 @@ The `OnActive` and `WhileActive` events are called by an unreliable multicast.
 * Simulated proxies reliably receive `WhileActive` and `OnRemove`  
 `UAbilitySystemComponent::MinimalReplicationGameplayCues`'s replication calls `WhileActive` and `OnRemove`. The `OnActive` event is called by an unreliable multicast.
 
-If you need something in a `GameplayCue` to be 'reliable', then apply it from a `GameplayEffect` and use `WhileActive` to add the FX and `OnRemove` to remove the FX.
+如果你想`GameplayCue` 中的一些东西 'reliable', 那么你就从 `GameplayEffect` 应用它并使用 `WhileActive` 和 `OnRemove` 分别添加、移除 FX.
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-asg"></a>
 ### 4.9 Ability System Globals
-The [`AbilitySystemGlobals`](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/UAbilitySystemGlobals/index.html) class holds global information about GAS. Most of the variables can be set from the `DefaultGame.ini`. Generally you won't have to interact with this class, but you should be aware of its existence. If you need to subclass things like the [`GameplayCueManager`](#concepts-gc-manager) or the [`GameplayEffectContext`](#concepts-ge-context), you have to do that through the `AbilitySystemGlobals`.
+[`AbilitySystemGlobals`](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/UAbilitySystemGlobals/index.html) 保存有关 GAS的全局信息.大部分变量可以在 `DefaultGame.ini`中配置. 一般来说你只需要知道它的存在，而不必与他打交道. 如果你想替换[`GameplayCueManager`](#concepts-gc-manager) 或 [`GameplayEffectContext`](#concepts-ge-context)为其子类, 你可以通过 `AbilitySystemGlobals`修改.
 
-To subclass `AbilitySystemGlobals`, set the class name in the `DefaultGame.ini`:
+要使用`AbilitySystemGlobals`的子类, 需要在 `DefaultGame.ini`中修改:
 ```
 [/Script/GameplayAbilities.AbilitySystemGlobals]
 AbilitySystemGlobalsClassName="/Script/ParagonAssets.PAAbilitySystemGlobals"
@@ -2536,25 +2536,25 @@ AbilitySystemGlobalsClassName="/Script/ParagonAssets.PAAbilitySystemGlobals"
 
 <a name="concepts-asg-initglobaldata"></a>
 #### 4.9.1 InitGlobalData()
-Starting in UE 4.24, it is now necessary to call `UAbilitySystemGlobals::Get().InitGlobalData()` to use [`TargetData`](#concepts-targeting-data), otherwise you will get errors related to `ScriptStructCache` and clients will be disconnected from the server. This function only needs to be called once in a project. Fortnite calls it from `UAssetManager::StartInitialLoading()` and Paragon called it from `UEngine::Init()`. I find that putting it in `UAssetManager::StartInitialLoading()` is a good place as shown in the Sample Project. I would consider this boilerplate code that you should copy into your project to avoid issues with `TargetData`.
+从 UE 4.24 开始，现在需要调用 `UAbilitySystemGlobals::Get().InitGlobalData()` 才能使用 `TargetData`，否则您将收到与 `ScriptStructCache` 相关的错误，并且客户端将与服务器断开连接. 该方法在项目中仅需要调用一次. Fortnite 在 `UAssetManager::StartInitialLoading()` 中调用，Paragon 在 `UEngine::Init()`中调用. 如示例项目中所示, 我发现将其放在 `UAssetManager::StartInitialLoading() `中是一个好地方。我r认为此样板代码可以复制到你的项目中以避免 `TargetData` 出现问题.
 
-If you run into a crash while using the `AbilitySystemGlobals` `GlobalAttributeSetDefaultsTableNames`, you may need to call `UAbilitySystemGlobals::Get().InitGlobalData()` later like Fortnite in the `AssetManager` or in the `GameInstance`.
+如果你在使用`AbilitySystemGlobals` `GlobalAttributeSetDefaultsTableNames`时崩溃了, 你可能需要像Fortnite在 `AssetManager` 或 `GameInstance`中那样， 稍后调用 `UAbilitySystemGlobals::Get().InitGlobalData()`.
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-p"></a>
 ### 4.10 Prediction
-GAS comes out of the box with support for client-side prediction; however, it does not predict everything. Client-side prediction in GAS means that the client does not have to wait for the server's permission to activate a `GameplayAbility` and apply `GameplayEffects`. It can "predict" the server giving it permission to do this and predict the targets that it would apply `GameplayEffects` to. The server then runs the `GameplayAbility` network latency-time after the client activates and tells the client if he was correct or not in his predictions. If the client was wrong in any of his predictions, he will "roll back" his changes from his "mispredictions" to match the server.
+GAS有开箱即用的客户端侧预测功能，但他不是万能的. GAS 的客户端侧预测意味着客户端不需要等待服务器允许即可激活`GameplayAbility` 并应用 `GameplayEffects`. 它可以“预测”服务器允许其执行的操作，并预测它将应用 `GameplayEffects` 的目标. 客户端告诉服务器执行 `GameplayAbility`的网络延迟时间后，服务器再告诉客户端它是否预测正确. 如果客户端预测有任何错误， 他都会“回滚”它的错误预测直到与服务器匹配.
 
-The definitive source for GAS-related prediction is `GameplayPrediction.h` in the plugin source code.
+GAS相关预测的代码再插件`GameplayPrediction.h`中.
 
-Epic's mindset is to only predict what you "can get away with". For example, Paragon and Fortnite do not predict damage. Most likely they use [`ExecutionCalculations`](#concepts-ge-ec) for their damage which cannot be predicted anyway. This is not to say that you can't try to predict certain things like damage. By all means if you do it and it works well for you then that's great.
+Epic的心态是只预测你 “能逃脱惩罚” 的事情. 例如, Paragon 和 Fortnite并不预测伤害. 他们可能使用 [`ExecutionCalculations`](#concepts-ge-ec) 来计算伤害而者这是无法预测的. 这并不是说你无法尝试预测某些事情，例如伤害. 总而言之，如果你做了且没有错就行了.
 
 > ... we are also not all in on a "predict everything: seamlessly and automatically" solution. We still feel player prediction is best kept to a minimum (meaning: predict the minimum amount of stuff you can get away with).
 
 *Dave Ratti from Epic's comment from the new [Network Prediction Plugin](#concepts-p-npp)*
 
-**What is predicted:**
+**可以被预测的:**
 > * Ability activation
 > *	Triggered Events
 > *	GameplayEffect application:
@@ -2564,21 +2564,21 @@ Epic's mindset is to only predict what you "can get away with". For example, Par
 > * Montages
 > * Movement (built into UE's UCharacterMovement)
 
-**What is not predicted:**
+*不可被预测的:**
 > * GameplayEffect removal
 > * GameplayEffect periodic effects (dots ticking)
 
 *From `GameplayPrediction.h`*
 
-While we can predict `GameplayEffect` application, we cannot predict `GameplayEffect` removal. One way that we can work around this limitation is to predict the inverse effect when we want to remove a `GameplayEffect`. Say we predict a movement speed slow of 40%. We can predictively remove it by applying a movement speed buff of 40%. Then remove both `GameplayEffects` at the same time. This is not appropriate for every scenario and support for predicting `GameplayEffect` removal is still needed. Dave Ratti from Epic has expressed desire to add it to a [future iteration of GAS](https://epicgames.ent.box.com/s/m1egifkxv3he3u3xezb9hzbgroxyhx89).
+虽然我们可以预测 `GameplayEffect` 的应用, 但我们无法预测它的移除. 解决此限制的一种方法是预测当我们想要删除 `GameplayEffect` 时使用相反效果. 假设我们需要预测一个减速 40%. 我们可以通过设置一个加速 40%的buff假设它的移除. 然后同时移除两个 `GameplayEffects`. 这并不适合所有场景，仍然需要支持预测 `GameplayEffect` 删除。 Epic 的 Dave Ratti 表示希望将其添加到 GAS 的 [未来迭代](https://epicgames.ent.box.com/s/m1egifkxv3he3u3xezb9hzbgroxyhx89).
 
-Because we cannot predict the removal of `GameplayEffects`, we cannot fully predict `GameplayAbility` cooldowns and there is no inverse `GameplayEffect` workaround for them. The server's replicated `Cooldown GE` will exist on the client and any attempts to bypass this (with `Minimal` replication mode for example) will be rejected by the server. This means clients with higher latencies take longer to tell the server to go on cooldown and to receive the removal of the server's `Cooldown GE`. This means players with higher latencies will have a lower rate of fire than players with lower latencies, giving them a disadvantage against lower latency players. Fortnite avoids this issue by using custom bookkeeping instead of `Cooldown GEs`.
+因为我们无法预测 `GameplayEffects` 的删除，所以我们无法完全预测 `GameplayAbility` 的冷却时间，并且没有反转这个效果. 服务器的复制`Cooldown GE` 会存在客户端上，任何尝试绕过此的尝试 (with `Minimal` replication mode for example) 都会被服务器拒绝. 这意味着具有较高延迟的客户端需要更长的时间来告诉服务器进行冷却并接收服务器`Cooldown GE` 的删除. 这意味着延迟较高的玩家的开火率会低于延迟较低的玩家，从而使他们在对抗延迟较低的玩家时处于劣势。 Fortnite 通过使用自定义bookkeeping而不是 Cooldown GE 来避免此问题.
 
-Regarding predicting damage, I personally do not recommend it despite it being one of the first things that most people try when starting with GAS. I especially do not recommend trying to predict death. While you can predict damage, doing so is tricky. If you mispredict applying damage, the player will see the enemy's health jump back up. This can be especially awkward and frustrating if you try to predict death. Say you mispredict a `Character's` death and it starts ragdolling only to stop ragdolling and continue shooting at you when the server corrects it.
+关于预测伤害，我个人并不推荐它，尽管它是大多数人在开始使用 GAS 时首先尝试的事情之一。我特别不建议尝试预测死亡. 虽然可以预测伤害，但这样做很不好。如果你错误地预测了施加的伤害，玩家会看到敌人的生命值跳回. 如果你试图预测死亡，这可能会特别尴尬和令人沮丧。假设你错误地预测了一个角色的死亡，它开始ragdolling，但当服务器纠正它时，它会停止ragdolling并继续向你射击.
 
-**Note:** `Instant`	`GameplayEffects` (like `Cost GEs`) that change `Attributes` can be predicted on yourself seamlessly, predicting `Instant` `Attribute` changes to other characters will show a brief anomaly or "blip" in their `Attributes`. Predicted `Instant` `GameplayEffects` are actually treated like `Infinite` `GameplayEffects` so that they can be rolled back if mispredicted. When the server's `GameplayEffect` is applied, there potentially exists two of the same `GameplayEffect's` causing the `Modifier` to be applied twice or not at all for a brief moment. It will eventually correct itself but sometimes the blip is noticeable to players.
+**注意:** `Instant`	`GameplayEffects` (like `Cost GEs`) 可以被你自己预测去改变 `Attributes` , 预测其他玩家的 `Instant` `Attribute` 改变将显示短暂的异常或 "blip" . 预测的`Instant` `GameplayEffects` 实际上被视为`Infinite` `GameplayEffects`，因此如果预测错误，它们可以回滚. 当服务器的 `GameplayEffect` 被应用时, 可能存在两个相同的 `GameplayEffect` 导致`Modifier`被应用两次或在短时间内根本不应用. 它最终会自行纠正，但有时玩家会注意到这一点.
 
-Problems that GAS's prediction implementation is trying to solve:
+GAS预测实现待解决的问题:
 > 1. "Can I do this?" Basic protocol for prediction.
 > 2. "Undo" How to undo side effects when a prediction fails.
 > 3. "Redo" How to avoid replaying side effects that we predicted locally but that also get replicated from the server.
@@ -2592,48 +2592,50 @@ Problems that GAS's prediction implementation is trying to solve:
 
 <a name="concepts-p-key"></a>
 #### 4.10.1 Prediction Key
-GAS's prediction works on the concept of a `Prediction Key` which is an integer identifier that the client generates when he activates a `GameplayAbility`.
+GAS的预测时基于`Prediction Key`的概念，它是客户端在激活 `GameplayAbility`时生成的 整数 标识符.
 
-* Client generates a prediction key when it activates a `GameplayAbility`. This is the `Activation Prediction Key`.
-* Client sends this prediction key to the server with `CallServerTryActivateAbility()`.
-* Client adds this prediction key to all `GameplayEffects` that it applies while the prediction key is valid.
-* Client's prediction key falls out of scope. Further predicted effects in the same `GameplayAbility` need a new [Scoped Prediction Window](#concepts-p-windows).
+* Client generates a prediction key when it activates a `GameplayAbility`. This is the `Activation Prediction Key`.（客户端激活时生成Key）
+* Client sends this prediction key to the server with `CallServerTryActivateAbility()`. （发送服务器）
+* Client adds this prediction key to all `GameplayEffects` that it applies while the prediction key is valid.（应用到GE上）
+* Client's prediction key falls out of scope. Further predicted effects in the same `GameplayAbility` need a new [Scoped Prediction Window](#concepts-p-windows). （key有一定预测范围，超出范围需要新的预测窗口）
 
+***
 
-* Server receives the prediction key from the client.
-* Server adds this prediction key to all `GameplayEffects` that it applies.
-* Server replicates the prediction key back to the client.
+* Server receives the prediction key from the client.（服务器接收key）
+* Server adds this prediction key to all `GameplayEffects` that it applies.（将key应用到所有GE）
+* Server replicates the prediction key back to the client.（同步key给客户端）
 
+***
 
-* Client receives replicated `GameplayEffects` from the server with the prediction key used to apply them. If any of the replicated `GameplayEffects` match the `GameplayEffects` that the client applied with the same prediction key, they were predicted correctly. There will temporarily be two copies of the `GameplayEffect` on the target until the client removes its predicted one.
-* Client receives the prediction key back from the server. This is the `Replicated Prediction Key`. This prediction key is now marked stale.
-* Client removes **all** `GameplayEffects` that it created with the now stale replicated prediction key. `GameplayEffects` replicated by the server will persist. Any `GameplayEffects` that the client added and didn't receive a matching replicated version from the server were mispredicted.
+* Client receives replicated `GameplayEffects` from the server with the prediction key used to apply them. If any of the replicated `GameplayEffects` match the `GameplayEffects` that the client applied with the same prediction key, they were predicted correctly. There will temporarily be two copies of the `GameplayEffect` on the target until the client removes its predicted one.（客户端接到服务器传来的复制GE并应用，复制的GE key与本地是一样的就预测准确了，目标上有两份GE副本，直到客户端删除预测的副本）
+* Client receives the prediction key back from the server. This is the `Replicated Prediction Key`. This prediction key is now marked stale.（客户端接收服务器返回的预测key， 它现在已过时了）
+* Client removes **all** `GameplayEffects` that it created with the now stale replicated prediction key. `GameplayEffects` replicated by the server will persist. Any `GameplayEffects` that the client added and didn't receive a matching replicated version from the server were mispredicted.（客户端删除所有过时key的GE， 服务器复制来的会保留，任何客户端添加且没收到服务同步来的就是预测错误的）
 
-Prediction keys are guaranteed to be valid during an atomic grouping of instructions "window" in `GameplayAbilities` starting with `Activation` from the activation prediction key. You can think of this as being only valid during one frame. Any callbacks from latent action `AbilityTasks` will no longer have a valid prediction key unless the `AbilityTask` has a built-in Synch Point which generates a new [Scoped Prediction Window](#concepts-p-windows).
+从激活预测密钥的`Activation`, 在 `GameplayAbilities` 中的原子指令“窗口”分组期间，预测密钥保证有效. 可以认为这仅在一帧内有效. 来自延迟 `AbilityTasks` 的任何回调将不再具有有效的预测键，除非 `AbilityTask` 具有生成新范围预测窗口的内置同步点 [Scoped Prediction Window](#concepts-p-windows).
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-p-windows"></a>
 #### 4.10.2 Creating New Prediction Windows in Abilities
-To predict more actions in callbacks from `AbilityTasks`, we need to create a new Scoped Prediction Window with a new Scoped Prediction Key. This is sometimes referred to as a Synch Point between the client and server. Some `AbilityTasks` like all of the input related ones come with built-in functionality to create a new scoped prediction window, meaning atomic code in the `AbilityTasks'` callbacks have a valid scoped prediction key to use. Other tasks like the `WaitDelay` task do not have built-in code to create a new scoped prediction window for its callback. If you need to predict actions after an `AbilityTask` that does not have built-in code to create a scoped prediction window like `WaitDelay`, we must manually do that using the `WaitNetSync` `AbilityTask` with the option `OnlyServerWait`. When the client hits a `WaitNetSync` with `OnlyServerWait`, it generates a new scoped prediction key based on the `GameplayAbility's` activation prediction key, RPCs it to the server, and adds it to any new `GameplayEffects` that it applies. When the server hits a `WaitNetSync` with `OnlyServerWait`, it waits until it receives the new scoped prediction key from the client before continuing. This scoped prediction key does the same dance as activation prediction keys - applied to `GameplayEffects` and replicated back to clients to be marked stale. The scoped prediction key is valid until it falls out of scope, meaning the scoped prediction window has closed. So again, only atomic operations, nothing latent, can use the new scoped prediction key.
+想要从 `AbilityTasks`的回调中做更多预测, 我们需要使用新的范围预测密钥创建一个新的范围预测窗口. 这有时称为客户端和服务器之间的同步点. 一些 `AbilityTasks` 如输入相关的任务 则具有内置功能来创建新的范围预测窗口, 意味着 `AbilityTasks'` 回调中的原子代码有一个有效的范围预测键可供使用. 其他任务如 `WaitDelay` 没有内置代码来为其回调创建新的范围预测窗口. 如果您需要在没有内置代码来创建像 `WaitDelay` 这样的范围预测窗口的 `AbilityTask` 之后预测操作，我们必须使用带有 `OnlyServerWait` 选项的 `WaitNetSyncbilityTask` 手动执行此操作. 当客户端使用 `OnlyServerWait` 命中 `WaitNetSync` 时，它会根据 `GameplayAbility` 的激活预测密钥生成新的范围预测密钥，将其 RPC 到服务器，并将其添加到它应用的任何新 `GameplayEffects` 中. 当服务器使用 `OnlyServerWait` 命中 `WaitNetSync` 时，它会等待，直到从客户端收到新的范围预测密钥，然后再继续. 此作用域预测键与激活预测键执行相同的操作 - 应用于 `GameplayEffects` 并复制回客户端以标记为过时. 范围预测键在超出范围之前一直有效，超出意味着范围预测窗口已关闭。同样，只有原子操作（没有任何潜在的操作）可以使用新的作用域预测键.
 
-You can create as many scoped prediction windows as you need.
+你可以尽可能多的创建范围预测窗口.
 
-If you would like to add the synch point functionality to your own custom `AbilityTasks`, look at how the input ones essentially inject the `WaitNetSync` `AbilityTask` code into them.
+如果您想将同步点功能添加到您自己的自定义 `AbilityTasks` 中，查看输入任务如何将 `WaitNetSync` `AbilityTask` 代码注入其中.
 
-**Note:** When using `WaitNetSync`, this does block the server's `GameplayAbility` from continuing execution until it hears from the client. This could potentially be abused by malicious users who hack the game and intentionally delay sending their new scoped prediction key. While Epic uses the `WaitNetSync` sparingly, it recommends potentially building a new version of the `AbilityTask` with a delay that automatically continues without the client if this is a concern for you.
+**注意:** 使用 `WaitNetSync` 时，这确实会阻止服务器的 `GameplayAbility` 继续执行，直到收到客户端的消息. 这可能会被恶意用户滥用，他们会破解游戏并故意延迟发送新的范围预测密钥. 虽然 Epic 很少使用 `WaitNetSync`，但如果你担心这一点，它建议你构建一个具有延迟的新版本的 `AbilityTask`​​，该延迟会在没有客户端的情况下自动继续.
 
-The Sample Project uses `WaitNetSync` in the Sprint `GameplayAbility` to create a new scoped prediction window every time we apply the stamina cost so that we can predict it. Ideally we want a valid prediction key when applying costs and cooldowns.
+示例项目在每次应用耐力成本时使用 Sprint `GameplayAbility` 中的 `WaitNetSync` 创建一个新的范围预测窗口，以便我们可以预测它。理想情况下，我们在应用成本和冷却时间时需要一个有效的预测密钥.
 
-If you have a predicted `GameplayEffect` that is playing twice on the owning client, your prediction key is stale and you're experiencing the "redo" problem. You can usually solve this by putting a `WaitNetSync` `AbilityTask` with `OnlyServerWait` right before you apply the `GameplayEffect` to create a new scoped prediction key.
+如果你的预测 `GameplayEffect` 在所属客户端上运行了两次，那你的预测密钥已过时，并且需要 "redo" . 您通常可以通过在应用 `GameplayEffect` 创建新的范围预测键之前放置带有 `OnlyServerWait` 的 `WaitNetSync` `AbilityTask` 来解决此问题.
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-p-spawn"></a>
 #### 4.10.3 Predictively Spawning Actors
-Spawning `Actors` predictively on clients is an advanced topic. GAS does not provide functionality to handle this out of the box (the `SpawnActor` `AbilityTask` only spawns the `Actor` on the server). The key concept is to spawn a replicated `Actor` on both the client and the server.
+在客户端上预测生成 `Actors` 是高级内容. GAS并未提供开箱即用的功能 (the `SpawnActor` `AbilityTask` only spawns the `Actor` on the server). 关键点是在客户端和服务器上生成了一个可复制的 `Actor` .
 
-If the `Actor` is just cosmetic or doesn't serve any gameplay purpose, the simple solution is to override the `Actor's` `IsNetRelevantFor()` function to restrict the server from replicating to the owning client. The owning client would have his locally spawned version and the server and other clients would have the server's replicated version.
+如果 `Actor` 只是装饰性的或不用于任何游戏目的，则简单的解决方案是重写 `Actor` 的 `IsNetRelevantFor()` 函数以限制服务器复制到所属客户端I. 拥有的客户端将拥有其本地生成的版本，而服务器和其他客户端将拥有服务器的复制版本.
 ```c++
 bool APAReplicatedActorExceptOwner::IsNetRelevantFor(const AActor * RealViewer, const AActor * ViewTarget, const FVector & SrcLocation) const
 {
@@ -2641,13 +2643,13 @@ bool APAReplicatedActorExceptOwner::IsNetRelevantFor(const AActor * RealViewer, 
 }
 ```
 
-If the spawned `Actor` affects gameplay like a projectile that needs to predict damage, then you need advanced logic that is outside of the scope of this documentation. Look at how UnrealTournament predictively spawns projectiles on Epic Games' GitHub. They have a dummy projectile spawned only on the owning client that synchs up with the server's replicated projectile.
+如果生成的 `Actor` 像需要预测伤害的子弹一样影响游戏玩法，那么您需要超出本文档范围的高级逻辑. 在 Epic Games 的 GitHub 上查看 UnrealTournament 如何预测性地生成子弹。他们仅在拥有的客户端上生成一个虚拟子弹，该虚拟子弹与服务器的复制子弹同步.
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-p-future"></a>
 #### 4.10.4 Future of Prediction in GAS
-`GameplayPrediction.h` states in the future they could potentially add functionality for predicting `GameplayEffect` removal and periodic `GameplayEffects`.
+`GameplayPrediction.h` 表示将来他们可能会添加预测 `GameplayEffect` 删除和定期 `GameplayEffects` 的功能.
 
 Dave Ratti from Epic has [expressed interest](https://epicgames.ent.box.com/s/m1egifkxv3he3u3xezb9hzbgroxyhx89) in fixing the `latency reconciliation` problem for predicting cooldowns, disadvantaging players with higher latencies versus players with lower latencies.
 
@@ -2657,7 +2659,7 @@ The new [`Network Prediction` plugin](#concepts-p-npp) by Epic is expected to be
 
 <a name="concepts-p-npp"></a>
 #### 4.10.5 Network Prediction Plugin
-Epic recently started an initiative to replace the `CharacterMovementComponent` with a new `Network Prediction` plugin. This plugin is still in its very early stages but is available to very early access on the Unreal Engine GitHub. It's too soon to tell which future version of the Engine that it will make its experimental beta debut in.
+Epic 最近发起了一项计划，用新的网络预测插件替换 `CharacterMovementComponent` . 该插件仍处于早期阶段，但可以在虚幻引擎 GitHub 上访问. 现在判断该引擎将在哪个未来版本中首次亮相还为时过早.
 
 **[⬆ Back to Top](#table-of-contents)**
 
@@ -2666,13 +2668,13 @@ Epic recently started an initiative to replace the `CharacterMovementComponent` 
 
 <a name="concepts-targeting-data"></a>
 #### 4.11.1 Target Data
-[`FGameplayAbilityTargetData`](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/FGameplayAbilityTargetData/index.html) is a generic structure for targeting data meant to be passed across the network. `TargetData` will typically hold `AActor`/`UObject` references, `FHitResults`, and other generic location/direction/origin information. However, you can subclass it to put essentially anything that you want inside of them as a simple means to [pass data between the client and server in `GameplayAbilities`](#concepts-ga-data). The base struct `FGameplayAbilityTargetData` is not meant to be used directly but instead subclassed. `GAS` comes with a few subclassed `FGameplayAbilityTargetData` structs out of the box located in `GameplayAbilityTargetTypes.h`.
+[`FGameplayAbilityTargetData`](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/FGameplayAbilityTargetData/index.html) 是用于通过网络传递的目标数据的通用结构. `TargetData` 持有 `AActor`/`UObject` 引用, `FHitResults`, 和其他通用的 location/direction/origin 信息. 但是，您可以对其进行子类化，以将任何您想要的内容放入其中，作为在 `GameplayAbilities` 中在客户端和服务器之间传递数据的简单方. 基础结构 `FGameplayAbilityTargetData` 不应该直接使用而是要继承使用. `GAS` 附带了一些开箱即用的 `FGameplayAbilityTargetData` 子类在 `GameplayAbilityTargetTypes.h`.
 
-`TargetData` is typically produced by [`Target Actors`](#concepts-targeting-actors) or **created manually** and consumed by [`AbilityTasks`](#concepts-at) and [`GameplayEffects`](#concepts-ge) via the [`EffectContext`](#concepts-ge-context). As a result of being in the `EffectContext`, [`Executions`](#concepts-ge-ec), [`MMCs`](#concepts-ge-mmc), [`GameplayCues`](#concepts-gc), and the functions on the backend of the [`AttributeSet`](#concepts-as) can access the `TargetData`.
+`TargetData` 通常由 [`Target Actors`](#concepts-targeting-actors)生成或 **手动创建** 并由  [`AbilityTasks`](#concepts-at) 和 [`GameplayEffects`](#concepts-ge) 通过 [`EffectContext`](#concepts-ge-context)使用. 由于位于 `EffectContext`中, [`Executions`](#concepts-ge-ec), [`MMCs`](#concepts-ge-mmc), [`GameplayCues`](#concepts-gc), 和其他 [`AttributeSet`](#concepts-as) 的后端函数可以访问`TargetData`.
 
-We don't typically pass around the `FGameplayAbilityTargetData` directly, instead we use a [`FGameplayAbilityTargetDataHandle`](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/FGameplayAbilityTargetDataHandle/index.html) which has an internal TArray of pointers to `FGameplayAbilityTargetData`. This intermediate struct provides support for polymorphism of the `TargetData`.
+我们通常不会直接传递 `FGameplayAbilityTargetData`, 而是使用[`FGameplayAbilityTargetDataHandle`](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/FGameplayAbilityTargetDataHandle/index.html)，它有一个指向内部`FGameplayAbilityTargetData`的TArray指针. 该中间结构为 `TargetData` 的多态性提供支持.
 
-An example of inheritting from `FGameplayAbilityTargetData`:
+一个继承`FGameplayAbilityTargetData`例子:
 ```c++
 USTRUCT(BlueprintType)
 struct MYGAME_API FGameplayAbilityTargetData_CustomData : public FGameplayAbilityTargetData
@@ -2715,7 +2717,7 @@ struct TStructOpsTypeTraits<FGameplayAbilityTargetData_CustomData> : public TStr
 	};
 };
 ```
-For adding the target data to a handle:
+将目标数据添加到handle:
 ```c++
 UFUNCTION(BlueprintPure)
 FGameplayAbilityTargetDataHandle MakeTargetDataFromCustomName(const FName CustomName)
@@ -2736,9 +2738,9 @@ FGameplayAbilityTargetDataHandle MakeTargetDataFromCustomName(const FName Custom
 }
 ```
 
-For getting values it requires doing type safety checking, because the only way to get values from the handle's target data is by using generic C/C++ casting for it which is *NOT* type safe which can cause object slicing and crashes. For type checking there are multiple ways of doing this(however you want honestly) two common ways are:
-- Gameplay Tag(s): You can use a subclass hierarchy where you know that anytime a certain code architecture's functionality occurs, you can cast for the base parent type and get its gameplay tag(s) and then compare against those for casting for inherited classes.
-- Script Struct & Static Structs: You can instead do direct class comparison(which can involve a lot of IF statements or making some template functions), below is an example of doing this but basically you can get the script struct from any `FGameplayAbilityTargetData`(this is a nice advantage of it being a `USTRUCT` and requiring any inherited classes to specify the struct type in `GetScriptStruct`) and compare if its the type you're looking for. Below is an example of using these functions for type checking:
+为了获取值，需要进行类型安全检查，因为从handle的目标数据获取值的唯一方法是使用通用 C/C++ 转换，这不是类型安全的，可能会导致对象切片和崩溃. 对于类型检查，有多种方法可以执行此操作，两种常见的方法是:
+- Gameplay Tag(s): 您可以使用子类层次结构，在该子类层次结构中，只要知道某个代码架构的功能发生，您就可以转换为基本父类型并获取其游戏标记，然后与继承类的转换标记进行比较.
+- Script Struct & Static Structs: 您可以直接进行类比较（这可能涉及大量 IF 语句或创建一些模板函数）, 下面是这样做的一个示例，但基本上可以从任何 `FGameplayAbilityTargetData` 获取脚本结构（这是它作为 `USTRUCT` 的一个很好的优点，并且要求任何继承类在 `GetScriptStruct` 中指定结构类型）,比较一下是否是您要找的类型。下面是使用这些函数进行类型检查的示例:
 ```c++
 UFUNCTION(BlueprintPure)
 FName GetCoolNameFromTargetData(const FGameplayAbilityTargetDataHandle& Handle, const int Index)
@@ -2769,7 +2771,7 @@ FName GetCoolNameFromTargetData(const FGameplayAbilityTargetDataHandle& Handle, 
 
 <a name="concepts-targeting-actors"></a>
 #### 4.11.2 Target Actors
-`GameplayAbilities` spawn [`TargetActors`](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/AGameplayAbilityTargetActor/index.html) with the `WaitTargetData` `AbilityTask` to visualize and capture targeting information from the world. `TargetActors` may optionally use [`GameplayAbilityWorldReticles`](#concepts-targeting-reticles) to display current targets. Upon confirmation, the targeting information is returned as [`TargetData`](#concepts-targeting-data) which can then be passed into `GameplayEffects`.
+`GameplayAbilities`使用 `WaitTargetData` `AbilityTask` 生成 spawn [`TargetActors`](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/AGameplayAbilityTargetActor/index.html) 以可视化并捕获来自世界的目标信息. `TargetActors` 可能使用 [`GameplayAbilityWorldReticles`](#concepts-targeting-reticles) 展示当前目标. 确认后，目标信息将作为  [`TargetData`](#concepts-targeting-data) 返回，然后可以传递到  `GameplayEffects`.
  
 `TargetActors` are based on `AActor` so they can have any kind of visible component to represent **where** and **how** they are targeting such as static meshes or decals. Static meshes may be used to visualize placement of an object that your character will build. Decals may be used to show an area of effect on the ground. The Sample Project uses [`AGameplayAbilityTargetActor_GroundTrace`](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/AGameplayAbilityTargetActor_Grou-/index.html) with a decal on the ground to represent the damage area of effect for the Meteor ability. They also don't need to display anything either. For example it wouldn't make sense to display anything for a hitscan gun that instantly traces a line to its target as used in [GASShooter](https://github.com/tranek/GASShooter).
 
