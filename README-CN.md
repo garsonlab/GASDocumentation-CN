@@ -2476,7 +2476,7 @@ virtual bool ShouldAsyncLoadRuntimeObjectLibraries() const override
 1. 重写 `UGameplayCueManager::FlushPendingCues()` ,可以基于某些自定义 `GameplayTag` 能一起合并的 `GameplayCues` 合并到您的自定义结构中，并将其 RPC 到客户端.
 1. 客户端接收到自定义结构体解压并本地执行 `GameplayCues`.
 
-如果 `GameplayCueParameters`提供的参数不能满足或者你有不想添加到`EffectContext`中的数据，比如伤害值，暴击，破甲值，是否是致命一击等数据，你都可以使用这种方式.
+如果 `GameplayCueParameters`提供的参数不能满足或者你有不想添加到`EffectContext`中的数据，比如伤害值，暴击，破甲值，是否是暴击等数据，你都可以使用这种方式.
 
 https://forums.unrealengine.com/development-discussion/c-gameplay-programming/1711546-fscopedgameplaycuesendcontext-gameplaycuemanager
 
@@ -2773,40 +2773,45 @@ FName GetCoolNameFromTargetData(const FGameplayAbilityTargetDataHandle& Handle, 
 #### 4.11.2 Target Actors
 `GameplayAbilities`使用 `WaitTargetData` `AbilityTask` 生成 spawn [`TargetActors`](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/AGameplayAbilityTargetActor/index.html) 以可视化并捕获来自世界的目标信息. `TargetActors` 可能使用 [`GameplayAbilityWorldReticles`](#concepts-targeting-reticles) 展示当前目标. 确认后，目标信息将作为  [`TargetData`](#concepts-targeting-data) 返回，然后可以传递到  `GameplayEffects`.
  
-`TargetActors` are based on `AActor` so they can have any kind of visible component to represent **where** and **how** they are targeting such as static meshes or decals. Static meshes may be used to visualize placement of an object that your character will build. Decals may be used to show an area of effect on the ground. The Sample Project uses [`AGameplayAbilityTargetActor_GroundTrace`](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/AGameplayAbilityTargetActor_Grou-/index.html) with a decal on the ground to represent the damage area of effect for the Meteor ability. They also don't need to display anything either. For example it wouldn't make sense to display anything for a hitscan gun that instantly traces a line to its target as used in [GASShooter](https://github.com/tranek/GASShooter).
+`TargetActors` 基于 `AActor`，因此它们可以具有任何类型的可见组件来表示它们的目标位置和方式，例如静态网格物体或贴花. 静态网格物体可用于展示角色创建的可视化物体. 贴花被用来展示地面上的效果. 示例工程中使用 [`AGameplayAbilityTargetActor_GroundTrace`](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/AGameplayAbilityTargetActor_Grou-/index.html) 在地图上显示贴画来展示流星落地效果. 有时他们也不需要显示任何东西。例如，对于 [GASShooter](https://github.com/tranek/GASShooter) 中使用的立即追踪到目标的直线的命中扫描枪来说，显示任何内容是没有意义的.
 
-They capture targeting information using basic traces or collision overlaps and convert the results as `FHitResults` or `AActor` arrays to `TargetData` depending on the `TargetActor` implementation. The `WaitTargetData` `AbilityTask` determines when the targets are confirmed through its `TEnumAsByte<EGameplayTargetingConfirmation::Type> ConfirmationType` parameter. When **not** using `TEnumAsByte<EGameplayTargetingConfirmation::Type::Instant`, the `TargetActor` typically performs the trace/overlap on `Tick()` and updates its location to the `FHitResult` depending on its implementation. While this performs a trace/overlap on `Tick()`, it's generally not terrible since it's not replicated and you typically don't have more than one (although you could have more) `TargetActor` running at a time. Just be aware that it uses `Tick()` and some complex `TargetActors` might do a lot on it like the rocket launcher's secondary ability in GASShooter. While tracing on `Tick()` is very responsive to the client, you may consider lowering the tick rate on the `TargetActor` if the performance hit is too much. In the case of `TEnumAsByte<EGameplayTargetingConfirmation::Type::Instant`, the `TargetActor` immediately spawns, produces `TargetData`, and destroys. `Tick()` is never called. 
+它们使用基本轨迹或碰撞重叠捕获目标信息，并根据`TargetActor`实现将结果转换为`FHitResults`或`AActor`数组. `WaitTargetData` `AbilityTask` 通过`TEnumAsByte<EGameplayTargetingConfirmation::Type> ConfirmationType` 参数决定何时确认目标. 当不使用 `TEnumAsByte<EGameplayTargetingConfirmation::Type::Instant` 时，`TargetActor` 通常在 `Tick()` 上执行跟踪/重叠，并根据其实现将其位置更新为 `FHitResult`. 虽然这会在 `Tick()` 上执行跟踪/重叠，但它通常并不可怕，因为它不会被复制，并且通常不会同时运行多个（尽管可以有多个）`TargetActor`. 请注意，它使用 `Tick()` 并且一些复杂的 `TargetActor` 可能会在上面做很多事情，就像 GASShooter 中火箭发射器的辅助功能一样. 而 `Tick()` 上的跟踪对客户端的响应非常灵敏，如果性能影响太大，您可以考虑降低 `TargetActor` 上的tick频率. 在 `TEnumAsByte<EGameplayTargetingConfirmation::Type::Instant`例子中, 立即生成`TargetActor`与 `TargetData`并销毁. `Tick()` 从未被调用. 
 
-| `EGameplayTargetingConfirmation::Type` | When targets are confirmed                                                                                                                                                                                                                                                                                                                                     |
+| `EGameplayTargetingConfirmation::Type` | 当目标确定后                                                                                                                                                                                                                                                                                                                                     |
 | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Instant`                              | The targeting happens instantly without special logic or user input deciding when to 'fire'.                                                                                                                                                                                                                                                                   |
-| `UserConfirmed`                        | The targeting happens when the user confirms the targeting when the [ability is bound to a `Confirm` input](#concepts-ga-input) or by calling `UAbilitySystemComponent::TargetConfirm()`. The `TargetActor` will also respond to a bound `Cancel` input or call to `UAbilitySystemComponent::TargetCancel()` to cancel targeting.                              |
-| `Custom`                               | The GameplayTargeting Ability is responsible for deciding when the targeting data is ready by calling `UGameplayAbility::ConfirmTaskByInstanceName()`. The `TargetActor` will also respond to `UGameplayAbility::CancelTaskByInstanceName()` to cancel targeting.                                                                                              |
-| `CustomMulti`                          | The GameplayTargeting Ability is responsible for deciding when the targeting data is ready by calling `UGameplayAbility::ConfirmTaskByInstanceName()`. The `TargetActor` will also respond to `UGameplayAbility::CancelTaskByInstanceName()` to cancel targeting. Should not end the `AbilityTask` upon data production.                                       |
+| `Instant`                              | 无需额外逻辑与用户输入即可立即触发.                                                                                                                                                                                                                                                                   |
+| `UserConfirmed`                        | 当用户将能力绑定到确认输入或通过调用 `UAbilitySystemComponent::TargetConfirm()` 确认时，就会触发. `TargetActor` 还将响应绑定的 `Cancel` 输入或调用 `UAbilitySystemComponent::TargetCancel()` 以取消.                              |
+| `Custom`                               | GameplayTargeting Ability 负责通过调用 `UGameplayAbility::ConfirmTaskByInstanceName()` 来决定目标数据何时准备就绪. `TargetActor` 还将响应 `UGameplayAbility::CancelTask​​ByInstanceName()` 以取消.                                                                                              |
+| `CustomMulti`                          | GameplayTargeting Ability 负责通过调用 `UGameplayAbility::ConfirmTaskByInstanceName()` 来决定目标数据何时准备就绪. `TargetActor` 还将响应 `UGameplayAbility::CancelTask​​ByInstanceName() `以取消。不应在数据生成时结束`AbilityTask` .                                       |
 
-Not every EGameplayTargetingConfirmation::Type is supported by every `TargetActor`. For example, `AGameplayAbilityTargetActor_GroundTrace` does not support `Instant` confirmation.
+并非每个`TargetActor`都支持 EGameplayTargetingConfirmation::Type. 例如, `AGameplayAbilityTargetActor_GroundTrace` 不支持 `Instant` 确认.
 
-The `WaitTargetData` `AbilityTask` takes in a `AGameplayAbilityTargetActor` class as a parameter and will spawn an instance on each activation of the `AbilityTask` and will destroy the `TargetActor` when the `AbilityTask` ends. The `WaitTargetDataUsingActor` `AbilityTask` takes in an already spawned `TargetActor`, but still destroys it when the `AbilityTask` ends. Both of these `AbilityTasks` are inefficient in that they either spawn or require a newly spawned `TargetActor` for each use. They're great for prototyping, but in production you might explore optimizing it if you have cases where you are constantly producing `TargetData` like in the case of an automatic rifle. GASShooter has a custom subclass of [`AGameplayAbilityTargetActor`](https://github.com/tranek/GASShooter/blob/master/Source/GASShooter/Public/Characters/Abilities/GSGATA_Trace.h) and a new [`WaitTargetDataWithReusableActor`](https://github.com/tranek/GASShooter/blob/master/Source/GASShooter/Public/Characters/Abilities/AbilityTasks/GSAT_WaitTargetDataUsingActor.h) `AbilityTask` written from scratch that allows you to reuse a `TargetActor` without destroying it.
+`WaitTargetData` `AbilityTask` 接受 `AGameplayAbilityTargetActor` 类作为参数，并会在每次激活 `AbilityTask` 时生成一个实例，并在 `AbilityTask` 结束时销毁 `TargetActor`. `WaitTargetDataUsingActor` 的`AbilityTask`接收已经生成的`TargetActor`，但当`AbilityTask`结束时仍然会销毁它. 这两个技能任务的效率都很低，因为每次使用它们要么生成或一个已生成的 TargetActor. 它们非常适合原型设计，但在生产中，如果不断生成 `TargetData`（例如自动步枪的情况），你可能需要对其进行优化T. GASShooter 有一个自定义 [`AGameplayAbilityTargetActor`](https://github.com/tranek/GASShooter/blob/master/Source/GASShooter/Public/Characters/Abilities/GSGATA_Trace.h)子类和一个新的 and a new [`WaitTargetDataWithReusableActor`](https://github.com/tranek/GASShooter/blob/master/Source/GASShooter/Public/Characters/Abilities/AbilityTasks/GSAT_WaitTargetDataUsingActor.h) `AbilityTask` ，支持重用  `TargetActor` 而不必销毁它.
 
-`TargetActors` are not replicated by default; however, they can be made to replicate if that makes sense in your game to show other players where the local player is targeting. They do include default functionality to communicate with the server via RPCs on the `WaitTargetData` `AbilityTask`. If the `TargetActor`'s `ShouldProduceTargetDataOnServer` property is set to `false`, then the client will RPC its `TargetData` to the server on confirmation via `CallServerSetReplicatedTargetData()` in `UAbilityTask_WaitTargetData::OnTargetDataReadyCallback()`. If `ShouldProduceTargetDataOnServer` is `true`, the client will send a generic confirm event, `EAbilityGenericReplicatedEvent::GenericConfirm`, RPC to the server in `UAbilityTask_WaitTargetData::OnTargetDataReadyCallback()` and the server will do the trace or overlap check upon receiving the RPC to produce data on the server. If the client cancels the targeting, it will send a generic cancel event, `EAbilityGenericReplicatedEvent::GenericCancel`, RPC to the server in `UAbilityTask_WaitTargetData::OnTargetDataCancelledCallback`. As you can see, there are a lot of delegates on both the `TargetActor` and the `WaitTargetData` `AbilityTask`. The `TargetActor` responds to inputs to produce and broadcast `TargetData` ready, confirm, or cancel delegates. `WaitTargetData` listens to the `TargetActor`'s `TargetData` ready, confirm, and cancel delegates and relays that information back to the `GameplayAbility` and to the server. If you send `TargetData` to the server, you may want to do validation on the server to make sure the `TargetData` looks reasonable to prevent cheating. Producing the `TargetData` directly on the server avoids this issue entirely, but will potentially lead to mispredictions for the owning client.
+默认情况下，`TargetActor` 不被复制；但是，如果这在你的游戏中有意义，则可以让它们进行复制，以向其他玩家显示本地玩家的目标位置. 它们确实包含通过 `WaitTargetData` `AbilityTask` 上的 RPC 与服务器进行通信的默认功能. 
+如果 `TargetActor`的`ShouldProduceTargetDataOnServer` 属性被设为 `false`, 那么客户端就会在确认后`UAbilityTask_WaitTargetData::OnTargetDataReadyCallback()`的`CallServerSetReplicatedTargetData()` RPC 它的 `TargetData`到server. 
+如果 `ShouldProduceTargetDataOnServer` 设为 `true`, 客户端在`UAbilityTask_WaitTargetData::OnTargetDataReadyCallback()`中向服务器发送确认事件`EAbilityGenericReplicatedEvent::GenericConfirm`,服务器在收到RPC后将 进行追踪、重叠检查以在服务器上生成数据. 
+如果客户端取消，它将在`UAbilityTask_WaitTargetData::OnTargetDataCancelledCallback`中向服务器发送通用取消事件
+`EAbilityGenericReplicatedEvent::GenericCancel`. 
+如你所见， `TargetActor` 和 `WaitTargetData` `AbilityTask` 上都有很多委托. `TargetActor`响应输入以生成和广播 `TargetData` 就绪、确认或取消委托. `WaitTargetData` 监听 `TargetActor`的 `TargetData` 准备就绪、确认和取消委托，并将该信息转发回 `GameplayAbility` 和 server. 如果你将`TargetData`发送到服务器，你可能需要在服务器上进行验证以确保`TargetData`看起来合理以防止作弊. 直接在服务器上生成 `TargetData` 可以完全避免此问题，但可能会导致拥有客户端的错误预测.
 
-Depending on the particular subclass of `AGameplayAbilityTargetActor` that you use, different `ExposeOnSpawn` parameters will be exposed on the `WaitTargetData` `AbilityTask` node. Some common parameters include:
+根据使用`AGameplayAbilityTargetActor` 的特定子类, 不同的 `ExposeOnSpawn` 参数会被暴露在`WaitTargetData` `AbilityTask` 节点上. 一些常见的参数包含:
 
 | Common `TargetActor` Parameters | Definition                                                                                                                                                                                                                                                                                                               |
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Debug                           | If `true`, it will draw debug tracing/overlapping information whenever the `TargetActor` performs a trace in non-shipping builds. Remember, non-`Instant` `TargetActors` will perform a trace on `Tick()` so these debug draw calls will also happen on `Tick()`.                                                        |
+| Debug                           | 如果为 `true`, 则每当`TargetActor`在非发布版本中执行时都会绘制  tracing/overlapping信息. 记住, 非`Instant` `TargetActors` 会在 `Tick()` 上执行追踪，因此这些绘制调用也在 `Tick()`.                                                        |
 | Filter                          | [Optional] A special struct for filtering out (removing) `Actors` from the targets when the trace/overlap happens. Typical use cases are to filter out the player's `Pawn`, require targets be of a specific class. See [Target Data Filters](#concepts-target-data-filters) for more advanced use cases. |
 | Reticle Class                   | [Optional] Subclass of `AGameplayAbilityWorldReticle` that the `TargetActor` will spawn.                                                                                                                                                                                                                                 |
 | Reticle Parameters              | [Optional] Configure your Reticles. See [Reticles](#concepts-targeting-reticles).                                                                                                                                                                                                                                        |
 | Start Location                  | A special struct for where tracing should start from. Typically this will be the player's viewpoint, a weapon muzzle, or the `Pawn`'s location.                                                                                                                                                                          |
 
-With the default `TargetActor` classes, `Actors` are only valid targets when they are directly in the trace/overlap. If they leave the trace/overlap (they move or you look away), they are no longer valid. If you want the `TargetActor` to remember the last valid target(s), you will need to add this functionality to a custom `TargetActor` class. I refer to these as persistent targets as they will persist until the `TargetActor` receives confirmation or cancellation, the `TargetActor` finds a new valid target in its trace/overlap, or the target is no longer valid (destroyed). GASShooter uses persistent targets for its rocket launcher's secondary ability's homing rockets targeting.
+对于默认`TargetActor` classes, `Actors` 仅当直接位于trace/overlap中时才是有效目标. 如果它们留下痕迹/重叠（它们移动或移开视线），它们就不再有效. 如果你希望 `TargetActor` 记住最后一个有效目标，则需要将此功能添加到自定义 TargetActor 类中. 我将这些称为持久目标，因为它们将持续存在，直到 `TargetActor` 收到确认或取消、`TargetActor` 在其跟踪/重叠中找到新的有效目标，或者目标不再有效（已销毁）. GASShooter 使用持久目标作为其火箭发射器的辅助能力的寻的火箭瞄准.
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-target-data-filters"></a>
 #### 4.11.3 Target Data Filters
-Using both the `Make GameplayTargetDataFilter` and `Make Filter Handle` nodes, you can filter out the player's `Pawn` or select only a specific class. If you need more advanced filtering, you can subclass `FGameplayTargetDataFilter` and override the `FilterPassesForActor` function. 
+使用 Make `GameplayTargetDataFilter` 和 `Make Filter Handle` 节点，你可以过滤掉玩家的 `Pawn` 或仅选择特定类. 如果你需要更多过滤设置，你可以继承`FGameplayTargetDataFilter`并重载 `FilterPassesForActor` 方法. 
 ```c++
 USTRUCT(BlueprintType)
 struct GASDOCUMENTATION_API FGDNameTargetDataFilter : public FGameplayTargetDataFilter
@@ -2818,7 +2823,7 @@ struct GASDOCUMENTATION_API FGDNameTargetDataFilter : public FGameplayTargetData
 };
 ```
 
-However, this will not work directly into the `Wait Target Data` node as it requires a `FGameplayTargetDataFilterHandle`. A new custom `Make Filter Handle` must be made to accept the subclass:
+但是，这不能直接作用于`Wait Target Data` 节点，因为它需要 `FGameplayTargetDataFilterHandle`. 必须创建一个新的自定义 `Make Filter Handle` 几点来接收子类:
 ```c++
 FGameplayTargetDataFilterHandle UGDTargetDataFilterBlueprintLibrary::MakeGDNameFilterHandle(FGDNameTargetDataFilter Filter, AActor* FilterActor)
 {
@@ -2835,12 +2840,12 @@ FGameplayTargetDataFilterHandle UGDTargetDataFilterBlueprintLibrary::MakeGDNameF
 
 <a name="concepts-targeting-reticles"></a>
 #### 4.11.4 Gameplay Ability World Reticles
-[`AGameplayAbilityWorldReticles`](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/AGameplayAbilityWorldReticle/index.html) (`Reticles`) visualize **who** you are targeting when targeting with non-`Instant` confirmed [`TargetActors`](#concepts-targeting-actors). `TargetActors` are responsible for the spawn and destroy lifetimes for all `Reticles`. `Reticles` are `AActors` so they can use any kind of visual component for representation. A common implementation as seen in [GASShooter](https://github.com/tranek/GASShooter) is to use a `WidgetComponent` to display a UMG Widget in screen space (always facing the player's camera). `Reticles` do not know which `AActor` that they're on, but you could subclass in that functionality on a custom `TargetActor`. `TargetActors` will typically update the `Reticle`'s location to the target's location on every `Tick()`.
+[`AGameplayAbilityWorldReticles`](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/AGameplayAbilityWorldReticle/index.html) (`Reticles标线`) 在使用非`Instant`确认的 `TargetActor` 进行定位时可视化您的目标对象. `TargetActors` 负责所有`Reticles`的生成销毁生命周期. `Reticles` 是 `AActors` 因此它们可以使用任何类型的视觉组件进行表示. 如[GASShooter](https://github.com/tranek/GASShooter)所见到的一样，一种通用的实现是使用一个 `WidgetComponent` 用UMG Widget 在屏幕空间显示 (始终面向玩家的镜头). `Reticles` 不知道它们位于哪个`AActor` 上, 但你可以在自定义的`TargetActor上对该功能重写. `TargetActors` 通常在每个`Tick()`对 `Reticle`更新为目标的位置.
 
-GASShooter uses `Reticles` to show locked-on targets for the rocket launcher's secondary ability's homing rockets. The red indicator on the enemy is the `Reticle`. The similar white image is the rocket launcher's crosshair.
+GASShooter 使用 `Reticles` 十字线来显示火箭发射器辅助能力的自导火箭的锁定目标. 敌人身上的红色指示器是十字线。类似的白色图像是火箭发射器的十字准线.
 ![Reticles in GASShooter](https://github.com/tranek/GASDocumentation/raw/master/Images/gameplayabilityworldreticle.png)
 
-`Reticles` come with a handful of `BlueprintImplementableEvents` for designers (they're intended to be developed in Blueprints):
+`Reticles` 对开发者提供了一些 `BlueprintImplementableEvents` (they're intended to be developed in Blueprints):
 
 ```c++
 /** Called whenever bIsTargetValid changes value. */
@@ -2861,17 +2866,17 @@ UFUNCTION(BlueprintImplementableEvent, Category = Reticle)
 void SetReticleMaterialParamVector(FName ParamName, FVector value);
 ```
 
-`Reticles` can optionally use [`FWorldReticleParameters`](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/FWorldReticleParameters/index.html) provided by the `TargetActor` for configuration. The default struct only provides one variable `FVector AOEScale`. While you can technically subclass this struct, the `TargetActor` will only accept the base struct. It seems a little short-sighted to not allow this to be subclassed with default `TargetActors`. However, if you make your own custom `TargetActor`, you can provide your own custom reticle parameters struct and manually pass it to your subclass of `AGameplayAbilityWorldReticles` when you spawn them.
+`Reticles`可以使用`TargetActor`提供的 [`FWorldReticleParameters`](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/FWorldReticleParameters/index.html) 进行配置. 默认 struct 只提供 `FVector AOEScale`变量. 虽然你可以继承这个结构体,但 TargetActor 将仅接受基本结构. 不允许使用默认 `TargetActors` 对其进行子类化似乎有点短视. 但是，如果创建自己的自定义 `TargetActor`，则可以提供自己的自定义标线参数结构，并在生成 `AGameplayAbilityWorldReticles` 时手动将其传递给 `AGameplayAbilityWorldReticles` .
 
-`Reticles` are not replicated by default, but can be made replicated if it makes sense for your game to show other players who the local player is targeting.
+`Reticles` 默认是不复制的, 如果你的游戏需要向其他玩家展示目标则可以进行复制.
 
-`Reticles` will only display on the current valid target with the default `TargetActors`. For example, if you're using a `AGameplayAbilityTargetActor_SingleLineTrace` to trace for a target, the `Reticle` will only appear when the enemy is directly in the trace path. If you look away, the enemy is no longer a valid target and the `Reticle` will disappear. If you want the `Reticle` to stay on the last valid target, you will want to customize your `TargetActor` to remember the last valid target and keep the `Reticle` on them. I refer to these as persistent targets as they will persist until the `TargetActor` receives confirmation or cancellation, the `TargetActor` finds a new valid target in its trace/overlap, or the target is no longer valid (destroyed).  GASShooter uses persistent targets for its rocket launcher's secondary ability's homing rockets targeting.
+`Reticles` 只会显示在具有默认 `TargetActors` 的当前有效目标上. 例如, 如果你使用 `AGameplayAbilityTargetActor_SingleLineTrace` 追踪目标,仅当敌人直接位于追踪路径中时  `Reticle` 才会出现. 如果你看向别处, 敌人就不再是有效目标且 `Reticle` 会消失. 如果你想 `Reticle`停止最后一个有效目标上, 你需要自定义自己的 `TargetActor` 来记住最后一个目标并让 `Reticle` 保存在上面. I refer to these as persistent targets as they will persist until the `TargetActor` receives confirmation or cancellation, the `TargetActor` finds a new valid target in its trace/overlap, or the target is no longer valid (destroyed).  GASShooter uses persistent targets for its rocket launcher's secondary ability's homing rockets targeting.
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-targeting-containers"></a>
 #### 4.11.5 Gameplay Effect Containers Targeting
-[`GameplayEffectContainers`](#concepts-ge-containers) come with an optional, efficient means of producing [`TargetData`](#concepts-targeting-data). This targeting takes place instantly when the `EffectContainer` is applied on the client and the server. It's more efficient than [`TargetActors`](#concepts-targeting-actors) because it runs on the CDO of the targeting object (no spawning and destroying of `Actors`), but it lacks player input, happens instantly without needing confirmation, cannot be canceled, and cannot send data from the client to the server (produces data on both). It works well for instant traces and collision overlaps. Epic's [Action RPG Sample Project](https://www.unrealengine.com/marketplace/en-US/product/action-rpg) includes two example types of targeting with its containers - target the ability owner and pull `TargetData` from an event. It also implements one in Blueprint to do instant sphere traces at some offset (set by child Blueprint classes) from the player. You can subclass `URPGTargetType` in C++ or Blueprint to make your own targeting types.
+[`GameplayEffectContainers`](#concepts-ge-containers) 提供了一种可选的、高效的生成 [`TargetData`](#concepts-targeting-data)方法. 当`EffectContainer` 应用于客户端和服务器时，此targeting会立即发生. 它比 [`TargetActors`](#concepts-targeting-actors)更高效，因为它在目标的CDO上运行 (没有 `Actors`的生成与销毁), 但它缺乏玩家输入，无需确认即可立即发生，无法取消，并且无法从客户端向服务器发送数据 (双端产生的数据). 它非常适合即时追踪和碰撞重叠. Epic的 [Action RPG Sample Project](https://www.unrealengine.com/marketplace/en-US/product/action-rpg) 包含两种 targeting  containers 方式- target the ability owner and pull `TargetData` from an event. 它还在蓝图中实现了一个功能，以在距播放器的一定偏移量（由子蓝图类设置）处进行即时球体跟踪. 你可以在C++或蓝图中重载  `URPGTargetType` 来创建你自己的的类型.
 
 **[⬆ Back to Top](#table-of-contents)**
 
@@ -2880,39 +2885,39 @@ void SetReticleMaterialParamVector(FName ParamName, FVector value);
 
 <a name="cae-stun"></a>
 ### 5.1 Stun
-Typically with stuns, we want to cancel all of a `Character's` active `GameplayAbilities`, prevent new `GameplayAbility` activations, and prevent movement throughout the duration of the stun. The Sample Project's Meteor `GameplayAbility` applies a stun on hit targets.
+通常，对于眩晕，我们希望取消角色的所有活动 `GameplayAbilities`，防止新的 `GameplayAbility` 激活，并防止在眩晕期间移动. 示例项目的Meteor `GameplayAbility` 对击中目标施加眩晕效果.
 
-To cancel the target's active `GameplayAbilities`, we call `AbilitySystemComponent->CancelAbilities()` when the stun [`GameplayTag` is added](#concepts-gt-change).
+为了取消激活的 `GameplayAbilities`, 在眩晕的[`GameplayTag`添加时](#concepts-gt-change)我们可以调用 `AbilitySystemComponent->CancelAbilities()` 取消.
 
-To prevent new `GameplayAbilities` from activating while stunned, the `GameplayAbilities` are given the stun `GameplayTag` in their [`Activation Blocked Tags` `GameplayTagContainer`](#concepts-ga-tags).
+在眩晕时为了阻止新的`GameplayAbilities` 激活,  `GameplayAbilities` 将眩晕 `GameplayTag` 放入 [`Activation Blocked Tags` `GameplayTagContainer`](#concepts-ga-tags).
 
-To prevent movement while stunned, we override the `CharacterMovementComponent's` `GetMaxSpeed()` function to return 0 when the owner has the stun `GameplayTag`.
+阻止眩晕时移动, 我们重载 `CharacterMovementComponent's` `GetMaxSpeed()` 函数在有眩晕 `GameplayTag`时返回0.
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="cae-sprint"></a>
 ### 5.2 Sprint
-The Sample Project provides an example of how to sprint - run faster while `Left Shift` is held down.
+示例工程提供了如何冲刺 - 当 `Left Shift` 按住时跑的更快.
 
-The faster movement is handled predictively by the `CharacterMovementComponent` by sending a flag over the network to the server. See `GDCharacterMovementComponent.h/cpp` for details.
+通过网络向服务器发送一个标志，`CharacterMovementComponent` 可以预测性的处理更快的速度. 参考 `GDCharacterMovementComponent.h/cpp` .
 
-The `GA` handles responding to the `Left Shift` input, tells the `CMC` to begin and stop sprinting, and to predictively charge stamina while `Left Shift` is pressed. See `GA_Sprint_BP` for details.
+`GA` 处理并响应 `Left Shift` 输入, 告诉 `CMC` 开始和结束冲刺, 并在按下 `Left Shift` 是预测性补充耐力. 参考 `GA_Sprint_BP`.
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="cae-ads"></a>
 ### 5.3 Aim Down Sights
-The Sample Project handles this the exact same way as sprinting but decreasing the movement speed instead of increasing it.
+示例项目以与冲刺完全相同的方式处理此问题，但降低而不是增加移动速度.
 
-See `GDCharacterMovementComponent.h/cpp` for details on predictively decreasing the movement speed.
+参考 `GDCharacterMovementComponent.h/cpp` 有关预测性降低移动速度的详细信息.
 
-See `GA_AimDownSight_BP` for details on handling the input. There is no stamina cost for aiming down sights.
+参考 `GA_AimDownSight_BP` 获取处理输入信息. 此处没有耐力消耗.
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="cae-ls"></a>
 ### 5.4 Lifesteal
-I handle lifesteal inside of the damage [`ExecutionCalculation`](#concepts-ge-ec). The `GameplayEffect` will have a `GameplayTag` on it like `Effect.CanLifesteal`. The `ExecutionCalculation` checks if the `GameplayEffectSpec` has that `Effect.CanLifesteal` `GameplayTag`. If the `GameplayTag` exists, the `ExecutionCalculation` [creates a dynamic `Instant` `GameplayEffect`](#concepts-ge-dynamic) with the amount of health to give as the modifier and applies it back to the `Source's` `ASC`.
+我在伤害计算 [`ExecutionCalculation`](#concepts-ge-ec)时处理吸血效果. `GameplayEffect` 会有一个类似`Effect.CanLifesteal`的 `GameplayTag`. `ExecutionCalculation` 检查是否在`GameplayEffectSpec`中有 `Effect.CanLifesteal` `GameplayTag`.如果这个 `GameplayTag` 存在, `ExecutionCalculation` [创建一个动态 `Instant` `GameplayEffect`](#concepts-ge-dynamic) 包含一定生命值返回到`Source'的 `ASC`.
 
 ```c++
 if (SpecAssetTags.HasTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage.CanLifesteal"))))
@@ -2937,54 +2942,54 @@ if (SpecAssetTags.HasTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage.C
 
 <a name="cae-random"></a>
 ### 5.5 Generating a Random Number on Client and Server
-Sometimes you need to generate a "random" number inside of a `GameplayAbility` for things like bullet recoil or spread. The client and the server will both want to generate the same random numbers. To do this, we must set the `random seed` to be the same at the time of `GameplayAbility` activation. You will want to set the `random seed` each time you activate the `GameplayAbility` in case the client mispredicts activation and its random number sequence becomes out of synch with the server's.
+有时你需要在`GameplayAbility`内生成一个"随机"数值做类似子弹反冲和散步. 客户端和服务器可能需要产生相同的数字. 为了做到这些, 我们需要在 `GameplayAbility` 激活时设置相同的 `random seed`. 每次激活 `GameplayAbility` 时，你都需要设置随机种子，以防客户端错误预测激活并且其随机数序列与服务器的不同步.
 
 | Seed Setting Method                                                          | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Use the activation prediction key                                            | The `GameplayAbility` activation prediction key is an int16 guaranteed to be synchronized and available in both the client and server in the `Activation()`. You can set this as the `random seed` on both the client and the server. The downside to this method is that the prediction key always starts at zero each time the game starts and consistently increments the value to use between generating keys. This means each match will have the exact same random number sequence. This may or may not be random enough for your needs. |
-| Send a seed through an event payload when you activate the `GameplayAbility` | Activate your `GameplayAbility` by event and send the randomly generated seed from the client to the server via the replicated event payload. This allows for more randomness but the client could easily hack their game to only send the same seed value every time. Also activating `GameplayAbilities` by event will prevent them from activating from the input bind.                                                                                                                                                                     |
+| Use the activation prediction key                                            | The `GameplayAbility` activation prediction key is an int16 guaranteed to be synchronized and available in both the client and server in the `Activation()`. You can set this as the `random seed` on both the client and the server. The downside to this method is that the prediction key always starts at zero each time the game starts and consistently increments the value to use between generating keys. This means each match will have the exact same random number sequence. This may or may not be random enough for your needs. （使用key作为seed,缺点是每次游戏开始预测都是从0开始）|
+| Send a seed through an event payload when you activate the `GameplayAbility` | Activate your `GameplayAbility` by event and send the randomly generated seed from the client to the server via the replicated event payload. This allows for more randomness but the client could easily hack their game to only send the same seed value every time. Also activating `GameplayAbilities` by event will prevent them from activating from the input bind.（在激活参数中传递seed，但是客户端容易作弊发相同的seed，靠事件激活的无法从输入绑定激活）                                                                                                                                                                     |
 
-If your random deviation is small, most players won't notice that the sequence is the same every game and using the activation prediction key as the `random seed` should work for you. If you're doing something more complex that needs to be hacker proof, perhaps using a `Server Initiated` `GameplayAbility` would work better where the server can create the prediction key or generate the `random seed` to send via an event payload.
+如果您的随机偏差很小，大多数玩家不会注意到每个游戏的序列都是相同的，并且使用激活预测密钥作为随机种子应该适合. 如果你需要做一些防破解的事，可以使用 `Server Initiated` `GameplayAbility` 会更好，因为服务器可以创建预测密钥或生成随机种子以通过事件负载发送.
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="cae-crit"></a>
 ### 5.6 Critical Hits
-I handle critical hits inside of the damage [`ExecutionCalculation`](#concepts-ge-ec). The `GameplayEffect` will have a `GameplayTag` on it like `Effect.CanCrit`. The `ExecutionCalculation` checks if the `GameplayEffectSpec` has that `Effect.CanCrit` `GameplayTag`. If the `GameplayTag` exists, the `ExecutionCalculation` generates a random number corresponding to the critical hit chance (`Attribute` captured from the `Source`) and adds the critical hit damage (also an `Attribute` captured from the `Source`) if it succeeded. Since I don't predict damage, I don't have to worry about synchronizing the random number generators on the client and server since the `ExecutionCalculation` will only run on the server. If you tried to do this predictively using an `MMC` to do your damage calculation, you would have to get a reference to the `random seed` from the `GameplayEffectSpec->GameplayEffectContext->GameplayAbilityInstance`.
+我在伤害计算 [`ExecutionCalculation`](#concepts-ge-ec)中处理暴击. `GameplayEffect`会有一个`GameplayTag` 类似 `Effect.CanCrit`. `ExecutionCalculation` 检测 `GameplayEffectSpec` 是否有 `Effect.CanCrit` `GameplayTag`. 如果这个 `GameplayTag` 存在, `ExecutionCalculation`生成一个与暴击几率对应的随机数(`Attribute` captured from the `Source`) 在成功时添加暴击伤害 (also an `Attribute` captured from the `Source`) . 由于我不预测伤害，因此我不必担心同步客户端和服务器上的随机数生成器，因为 `ExecutionCalculation` 只会在服务器上运行. 如果你想使用 `MMC`做一些伤害计算预测, 你需要从 `GameplayEffectSpec->GameplayEffectContext->GameplayAbilityInstance`获取随机种子的引用.
 
-See how [GASShooter](https://github.com/tranek/GASShooter) does headshots. It's the same concept except that it does not rely on a random number for chance and instead checks the `FHitResult` bone name.
+查看 [GASShooter](https://github.com/tranek/GASShooter) 做的爆头. 他们时相同的概念，只是它不依赖随机数，而是检查`FHitResult`中骨骼信息.
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="cae-nonstackingge"></a>
 ### 5.7 Non-Stacking Gameplay Effects but Only the Greatest Magnitude Actually Affects the Target
-Slow effects in Paragon did not stack. Each slow instance applied and kept track of their lifetimes as normal, but only the greatest magnitude slow effect actually affected the `Character`. GAS provides for this scenario out of the box with `AggregatorEvaluateMetaData`. See [`AggregatorEvaluateMetaData()`](#concepts-as-onattributeaggregatorcreated) for details and implementation.
+Paragon中缓慢效果不i会叠加. 每个缓慢实例都正常应用并跟踪其生命周期，但只有最大程度的缓慢效果真正影响了 `Character`. GAS 通过`AggregatorEvaluateMetaData`为这个场景提供了开箱即用的功能. 查看 [`AggregatorEvaluateMetaData()`](#concepts-as-onattributeaggregatorcreated) 获取更多详情和实现.
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="cae-paused"></a>
 ### 5.8 Generate Target Data While Game is Paused
-If you need to pause the game while waiting to generate [`TargetData`](#concepts-targeting-data) from a `WaitTargetData` `AbilityTask` from your player, I suggest instead of pausing to use `slomo 0`.
+如果你想从玩家等待`WaitTargetData` `AbilityTask`生成[`TargetData`](#concepts-targeting-data)时暂停游戏，我建议将暂停改为使用`slomo 0`.
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="cae-onebuttoninteractionsystem"></a>
 ### 5.9 One Button Interaction System
-[GASShooter](https://github.com/tranek/GASShooter) implements a one button interaction system where the player can press or hold 'E' to interact with interactable objects like reviving a player, opening a weapon chest, and opening or closing a sliding door.
+[GASShooter](https://github.com/tranek/GASShooter) 实现了一个一键交互系统，玩家可以按下或按住“E”来与可交互对象进行交互，例如复活玩家、打开武器箱以及打开或关闭滑动门.
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="debugging"></a>
 ## 6. Debugging GAS
-Often when debugging GAS related issues, you want to know things like:
+通常在调试 GAS 相关问题时，您想了解以下信息:
 > * "What are the values of my attributes?"
 > * "What gameplay tags do I have?"
 > * "What gameplay effects do I currently have?"
 > * "What abilities do I have granted, which ones are running, and which ones are blocked from activating?".
 
-GAS comes with two techniques for answering these questions at runtime - [`showdebug abilitysystem`](#debugging-sd) and hooks in the [`GameplayDebugger`](#debugging-gd).
+GAS 提供了两种在运行时回答这些问题的技术 - [`showdebug abilitysystem`](#debugging-sd) and hooks in the [`GameplayDebugger`](#debugging-gd).
 
-**Tip:** Unreal Engine likes to optimize C++ code which makes it hard to debug some functions. You will encounter this rarely when tracing deep into your code. If setting your Visual Studio solution configuration to `DebugGame Editor` still prevents tracing code or inspecting variables, you can disable all optimizations by wrapping the optimized function with the `UE_DISABLE_OPTIMIZATION` and `UE_ENABLE_OPTIMIZATION` macros or the ship variations defined in CoreMiscDefines.h. This cannot be used on the plugin code unless you rebuild the plugin from source. This may or may not work on inline functions depending on what they do and where they are. Be sure to remove the macros when you're done debugging!
+**Tip:** Unreal Engine 喜欢优化 C++ 代码，这使得某些功能很难调试. 当深入跟踪代码时，您很少会遇到这种情况. 如果你将Visual Studio solution configuration 设置为 `DebugGame Editor` 仍然无法跟踪代码或检查变量, 你可以重载优化函数来禁用所有优化，使用定义在CoreMiscDefines.h中的  `UE_DISABLE_OPTIMIZATION` and `UE_ENABLE_OPTIMIZATION` macros or the ship variations. 这不能用于插件代码除非你重编这些源码. 这可能在内联函数上起作用，也可能不起作用，具体取决于它们的作用和位置。完成调试后请务必删除宏!
 
 ```c++
 UE_DISABLE_OPTIMIZATION
@@ -2999,34 +3004,34 @@ UE_ENABLE_OPTIMIZATION
 
 <a name="debugging-sd"></a>
 ### 6.1 showdebug abilitysystem
-Type `showdebug abilitysystem` in the in-game console. This feature is split into three "pages". All three pages will show the `GameplayTags` that you currently have. Type `AbilitySystem.Debug.NextCategory` into the console to cycle between the pages.
+输入 `showdebug abilitysystem` 在游戏的console. 此功能分为三个“页面”. 所有的三个界面都展示了你当前拥有的 `GameplayTags` . 在console输入 `AbilitySystem.Debug.NextCategory`在几个页面跳转.
 
-The first page shows the `CurrentValue` of all of your `Attributes`:
+第一个界面展示所有`Attributes`的 `CurrentValue` :
 ![First Page of showdebug abilitysystem](https://github.com/tranek/GASDocumentation/raw/master/Images/showdebugpage1.png)
 
-The second page shows all of the `Duration` and `Infinite` `GameplayEffects` on you, their number of stacks, what `GameplayTags` they give, and what `Modifiers` they give.
+第二个界面展示身上所有 `Duration` 和 `Infinite` `GameplayEffects` , their number of stacks, what `GameplayTags` they give, and what `Modifiers` they give.
 ![Second Page of showdebug abilitysystem](https://github.com/tranek/GASDocumentation/raw/master/Images/showdebugpage2.png)
 
-The third page shows all of the `GameplayAbilities` that have been granted to you, whether they are currently running, whether they are blocked from activating, and the status of currently running `AbilityTasks`.
+第三个界面展示所有授予的 `GameplayAbilities` , whether they are currently running, whether they are blocked from activating, and the status of currently running `AbilityTasks`.
 ![Third Page of showdebug abilitysystem](https://github.com/tranek/GASDocumentation/raw/master/Images/showdebugpage3.png)
 
-To cycle between targets (denoted by a green rectangular prism around the Actor), use the `PageUp` key or `NextDebugTarget` console command to go to the next target and the `PageDown` key or `PreviousDebugTarget` console command to go to the previous target.
+跳转目标 (denoted by a green rectangular prism around the Actor), use the `PageUp` key or `NextDebugTarget` console command to go to the next target and the `PageDown` key or `PreviousDebugTarget` console command to go to the previous target.
 
-**Note:** In order for the ability system information to update based on the currently selected debug Actor, you need to set `bUseDebugTargetFromHud=true` in the `AbilitySystemGlobals` like so in the `DefaultGame.ini`:
+**Note:** 为了使系统信息能够根据当前选择的调试Actor进行更新, 你需要设置 `bUseDebugTargetFromHud=true` 在 `AbilitySystemGlobals` :
 ```
 [/Script/GameplayAbilities.AbilitySystemGlobals]
 bUseDebugTargetFromHud=true
 ```
 
-**Note:** For `showdebug abilitysystem` to work an actual HUD class must be selected in the GameMode. Otherwise the command is not found and "Unknown Command" is returned.
+**Note:** 为了 `showdebug abilitysystem` 正常运行，必须在设置GameMode中的 HUD class. 否则找不到该命令并返回“Unknown Command”.
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="debugging-gd"></a>
 ### 6.2 Gameplay Debugger
-GAS adds functionality to the Gameplay Debugger. Access the Gameplay Debugger with the Apostrophe (') key. Enable the Abilities category by pressing 3 on your numpad. The category may be different depending on what plugins you have. If your keyboard doesn't have a numpad like a laptop, then you can change the keybindings in the project settings.
+GAS 为游戏调试器添加了功能。使用撇号 (') 键访问游戏调试器. 按数字键盘上的 3 启用Ability类别. 根据你拥有的插件，类别可能会有所不同. 如果你的键盘没有像笔记本电脑那样的小键盘，那么可以在项目设置中更改键绑定.
 
-Use the Gameplay Debugger when you want to see the `GameplayTags`, `GameplayEffects`, and `GameplayAbilities` on **other** `Characters`. Unfortunately it does not show the `CurrentValue` of the target's `Attributes`. It will target whatever `Character` is in the center of your screen. You can change targets by selecting them in the World Outliner in the Editor or by looking at a different `Character` and press Apostrophe (') again. The currently inspected `Character` has the largest red circle above it.
+想要查看其他角色的 `GameplayTags`, `GameplayEffects`, 和 `GameplayAbilities` 时. 不幸的是，它没有显示目标`Attributes`的`CurrentValue` .它将瞄准屏幕中央的任何角色. 你可以通过在编辑器的世界大纲中选择目标或查看不同的角色并再次按撇号（'）来更改目标. 当前检查的角色上方有最大的红色圆圈.
 
 ![Gameplay Debugger](https://github.com/tranek/GASDocumentation/raw/master/Images/gameplaydebugger.png)
 
@@ -3034,7 +3039,7 @@ Use the Gameplay Debugger when you want to see the `GameplayTags`, `GameplayEffe
 
 <a name="debugging-log"></a>
 ### 6.3 GAS Logging
-The GAS source code contains a lot of logging statements produced at varying verbosity levels. You will most likely see these as `ABILITY_LOG()` statements. The default verbosity level is `Display`. Anything higher will not be displayed in the console by default.
+GAS 源代码包含大量以不同详细级别生成的日志记录语句. 你可能很喜欢看见如 `ABILITY_LOG()` 语句. 默认详细级别为`Display`. 默认情况更高级别的日志不会再console中显示.
 
 To change the verbosity level of a log category, type into your console:
 
